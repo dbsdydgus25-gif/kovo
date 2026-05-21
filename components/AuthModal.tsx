@@ -49,7 +49,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#C60C30] border-2 border-white" />
           </div>
-          <h2 className="text-[20px] font-black text-[#1C1917]">VOICE 시작하기</h2>
+          <h2 className="text-[20px] font-black text-[#1C1917]">Kovo 시작하기</h2>
         </div>
         <p className="text-[13px] text-[#78716C] mb-1.5">
           편향 없이, 내 시각으로.

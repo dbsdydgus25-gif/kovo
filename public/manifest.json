@@ -1,7 +1,7 @@
 {
-  "name": "민심 - 대한민국 정치 찬반",
-  "short_name": "민심",
-  "description": "편향 없이, 모든 목소리로",
+  "name": "Kovo - 대한민국 정치 찬반",
+  "short_name": "Kovo",
+  "description": "편향 없이, 내 시각으로",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F5F7",

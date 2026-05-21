@@ -106,7 +106,7 @@ export default function ProfileClient({ user }: Props) {
       </div>
 
       <p className="text-[11px] text-gray-400 text-center pb-2">
-        VOICE v1.0 — 편향 없이, 내 시각으로
+        Kovo v1.0 — 편향 없이, 내 시각으로
       </p>
 
       {/* Delete confirmation bottom sheet */}

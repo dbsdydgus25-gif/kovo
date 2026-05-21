@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'VOICE | 대한민국 정치 찬반 플랫폼',
+  title: 'Kovo | 대한민국 정치 찬반 플랫폼',
   description: '편향 없이, 내 시각으로. 대한민국 정치 안건에 찬반 투표하고 인구통계 인사이트를 확인하세요.',
-  keywords: ['정치', '찬반', '투표', '국회', 'VOICE', '민주주의', '깨어있는민주주의'],
+  keywords: ['정치', '찬반', '투표', '국회', 'Kovo', '민주주의', '깨어있는민주주의'],
   openGraph: {
-    title: 'VOICE | 대한민국 정치 찬반 플랫폼',
+    title: 'Kovo | 대한민국 정치 찬반 플랫폼',
     description: '편향 없이, 내 시각으로.',
     type: 'website',
   },
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'VOICE',
+    title: 'Kovo',
   },
 }
 

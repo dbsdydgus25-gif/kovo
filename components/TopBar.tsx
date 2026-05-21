@@ -41,7 +41,7 @@ export default function TopBar({ title, showBack, showLogo = false, rightAction 
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#C60C30] border-2 border-white" />
                 </div>
-                <span className="text-[19px] font-black text-[#1C1917] tracking-tight">VOICE</span>
+                <span className="text-[19px] font-black text-[#1C1917] tracking-tight">Kovo</span>
               </div>
             </Link>
           ) : (

@@ -111,7 +111,7 @@ export default async function HomePage({ searchParams }: Props) {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[11px] text-white/60 font-semibold tracking-widest uppercase mb-0.5">VOICE</p>
+                  <p className="text-[11px] text-white/60 font-semibold tracking-widest uppercase mb-0.5">KOVO</p>
                   <h2 className="text-[16px] font-black text-white leading-tight">편향 없이, 내 시각으로</h2>
                   <p className="text-[12px] text-white/75 mt-1 leading-relaxed">
                     논제만 보고 투표하세요. 투표 후에야<br/>발의 정당과 인구통계 인사이트가 공개됩니다.
