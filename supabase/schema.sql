@@ -227,3 +227,35 @@ insert into public.issues (title, summary, description, category, party, pro_sum
   '단순 증원보다 의사의 지역 배치와 처우 개선이 선행되어야 합니다. 갑작스러운 대규모 증원은 의학교육 질 저하와 의료시장 과잉 경쟁을 초래할 수 있습니다.',
   true, 'active', 67432, 54321, 4521
 );
+
+-- ========================================
+-- NEWS (뉴스 캐시 — 매일 9시 KST 크론 업데이트)
+-- ========================================
+create table if not exists public.news (
+  id          uuid default gen_random_uuid() primary key,
+  title       text not null,
+  link        text,
+  pub_date    timestamptz,
+  source      text,
+  fetched_at  timestamptz default now()
+);
+
+alter table public.news enable row level security;
+
+create policy "news_select_all" on public.news for select using (true);
+create policy "news_insert_service" on public.news for insert with check (true);
+create policy "news_delete_service" on public.news for delete using (true);
+
+-- ========================================
+-- ANNOUNCEMENTS (홈 배너 공지 — Supabase 대시보드에서 직접 관리)
+-- ========================================
+create table if not exists public.announcements (
+  id         uuid default gen_random_uuid() primary key,
+  message    text not null,
+  is_active  boolean default true,
+  created_at timestamptz default now()
+);
+
+alter table public.announcements enable row level security;
+
+create policy "announcements_select_all" on public.announcements for select using (true);
