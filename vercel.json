@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/assembly/sync",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

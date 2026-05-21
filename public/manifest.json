@@ -1,0 +1,22 @@
+{
+  "name": "민심 - 대한민국 정치 찬반",
+  "short_name": "민심",
+  "description": "편향 없이, 모든 목소리로",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F5F7",
+  "theme_color": "#0038A8",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
