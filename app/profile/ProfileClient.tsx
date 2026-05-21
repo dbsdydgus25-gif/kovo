@@ -23,9 +23,10 @@ export interface VoteRecord {
 interface Props {
   user: User
   votes: VoteRecord[]
+  displayName: string | null
 }
 
-export default function ProfileClient({ user, votes }: Props) {
+export default function ProfileClient({ user, votes, displayName }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [deleting, setDeleting] = useState(false)
@@ -64,10 +65,12 @@ export default function ProfileClient({ user, votes }: Props) {
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#0038A8] to-[#1a56d6] flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xl font-black">나</span>
+            <span className="text-white text-xl font-black">
+              {displayName ? displayName.slice(0, 1).toUpperCase() : '나'}
+            </span>
           </div>
           <div>
-            <p className="text-[16px] font-bold text-[#1C1917]">익명 시민</p>
+            <p className="text-[16px] font-bold text-[#1C1917]">{displayName ?? '익명 시민'}</p>
             <p className="text-[12px] text-gray-400">{user.email}</p>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">

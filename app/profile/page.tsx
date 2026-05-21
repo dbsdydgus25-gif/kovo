@@ -14,6 +14,12 @@ export default async function ProfilePage() {
     redirect('/')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name, age_group, gender, region, occupation')
+    .eq('id', user.id)
+    .single()
+
   const { data: rawVotes } = await supabase
     .from('votes')
     .select(`
@@ -39,7 +45,7 @@ export default async function ProfilePage() {
     <div className="min-h-dvh bg-[#F5F5F7]">
       <TopBar title="내 정보" />
       <div className="pt-[72px] pb-[84px]">
-        <ProfileClient user={user} votes={votes} />
+        <ProfileClient user={user} votes={votes} displayName={profile?.display_name ?? null} />
       </div>
       <BottomNav />
     </div>
