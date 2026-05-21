@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Issue, VoteType } from '@/types'
 import { formatNumber, getVotePercentage } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -26,6 +27,7 @@ export default function VoteSection({ issue, userVote: initialVote, userId }: Vo
   const [loading, setLoading] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
   const supabase = createClient()
+  const router = useRouter()
 
   const hasVoted = !!userVote
   const { agree, disagree, total } = getVotePercentage(agreeCnt, disagreeCnt)
@@ -48,6 +50,7 @@ export default function VoteSection({ issue, userVote: initialVote, userId }: Vo
         user_id: userId,
         vote_type: voteType,
       })
+      router.refresh()
     } catch {
       setUserVote(null)
       if (voteType === 'agree') setAgreeCnt(a => a - 1)
