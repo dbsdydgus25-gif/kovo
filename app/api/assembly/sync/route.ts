@@ -95,7 +95,15 @@ async function processWithClaude(
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function GET() {
+  return runSync()
+}
+
+export async function POST(_request: NextRequest) {
+  return runSync()
+}
+
+async function runSync() {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
