@@ -1,25 +1,34 @@
 const BASE_URL = 'https://open.assembly.go.kr/portal/openapi'
 const API_KEY = process.env.ASSEMBLY_API_KEY || ''
 
-const KNOWN_PARTIES = ['더불어민주당', '국민의힘', '조국혁신당', '개혁신당']
+export const KNOWN_PARTIES = ['더불어민주당', '국민의힘', '조국혁신당', '개혁신당']
 const partyCache: Record<string, string> = {}
 
+// 22대 국회의원 당 조회 — Claude Haiku 사용 (Assembly 의원정보 API가 공개 미지원)
 export async function fetchMemberParty(name: string): Promise<string> {
-  if (!name) return '기타'
+  if (!name || name === '정부') return name === '정부' ? '정부' : '기타'
   if (partyCache[name]) return partyCache[name]
-  if (!API_KEY) return '기타'
+
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  if (!anthropicKey) return '기타'
+
   try {
-    const params = new URLSearchParams({ KEY: API_KEY, Type: 'json', pIndex: '1', pSize: '1', HG_NM: name })
-    const res = await fetch(`${BASE_URL}/nprlapfmkoflxwwj?${params}`, {
-      signal: AbortSignal.timeout(4000),
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    const client = new Anthropic({ apiKey: anthropicKey })
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 30,
+      messages: [{
+        role: 'user',
+        content: `22대 국회의원 "${name}"의 소속 정당은? JSON만: {"party":"더불어민주당/국민의힘/조국혁신당/개혁신당/기타 중 하나"}`,
+      }],
     })
-    if (!res.ok) return '기타'
-    const data = await res.json()
-    const row = data?.nprlapfmkoflxwwj?.[1]?.row?.[0]
-    const polyNm: string = row?.POLY_NM ?? ''
-    const party = KNOWN_PARTIES.find(p => polyNm.includes(p)) ?? '기타'
-    partyCache[name] = party
-    return party
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    const match = text.match(/"party"\s*:\s*"([^"]+)"/)
+    const party = match?.[1] ?? '기타'
+    const result = KNOWN_PARTIES.includes(party) ? party : '기타'
+    partyCache[name] = result
+    return result
   } catch {
     return '기타'
   }
