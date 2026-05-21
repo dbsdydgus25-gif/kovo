@@ -6,16 +6,12 @@ export interface AssemblyBill {
   BILL_NO: string
   BILL_NAME: string
   PROPOSER: string
-  PROC_RESULT: string
+  RST_PROPOSER: string   // 대표발의자
+  PROPOSER_KIND: string  // '의원' | '정부'
   PROPOSE_DT: string
+  CURR_COMMITTEE: string | null  // 소관위원회
   LINK_URL: string
   AGE: string
-}
-
-export interface AssemblyBillDetail extends AssemblyBill {
-  SUMMARY: string | null
-  RST_MONA_NM: string | null  // 소관위원회
-  COMMITTEE: string | null
 }
 
 export interface AssemblyApiResponse {
@@ -32,51 +28,40 @@ export async function fetchRecentBills(page = 1, size = 30): Promise<AssemblyApi
       Type: 'json',
       pIndex: String(page),
       pSize: String(size),
-      AGE: '22',  // 22대 국회
     })
 
-    const res = await fetch(`${BASE_URL}/nwbillbill?${params}`, {
+    const res = await fetch(`${BASE_URL}/nwbqublzajtcqpdae?${params}`, {
       next: { revalidate: 3600 },
+      headers: { 'User-Agent': 'Mozilla/5.0' },
     })
 
-    if (!res.ok) throw new Error('Assembly API error')
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
     const data = await res.json()
-    const root = data?.nwbillbill
-    if (!root) throw new Error('Invalid response')
+    const root = data?.nwbqublzajtcqpdae
+    if (!root) throw new Error('Invalid response shape')
 
     const head = root[0]?.head
     const total = head?.[0]?.list_total_count ?? 0
     const resultCode = head?.[1]?.RESULT?.CODE
-    if (resultCode !== 'INFO-000') throw new Error(`Assembly API: ${resultCode}`)
+    if (resultCode !== 'INFO-000') throw new Error(`API error: ${resultCode}`)
 
-    const rows: AssemblyBill[] = root[1]?.row ?? []
+    const rows: AssemblyBill[] = (root[1]?.row ?? []).map((r: Record<string, string | null>) => ({
+      BILL_ID: r.BILL_ID ?? '',
+      BILL_NO: r.BILL_NO ?? '',
+      BILL_NAME: r.BILL_NAME ?? '',
+      PROPOSER: r.PROPOSER ?? '',
+      RST_PROPOSER: r.RST_PROPOSER ?? '',
+      PROPOSER_KIND: r.PROPOSER_KIND ?? '의원',
+      PROPOSE_DT: r.PROPOSE_DT ?? '',
+      CURR_COMMITTEE: r.CURR_COMMITTEE ?? null,
+      LINK_URL: r.LINK_URL ?? '',
+      AGE: r.AGE ?? '22',
+    }))
+
     return { bills: rows, total }
   } catch (err) {
     console.error('Assembly fetchRecentBills failed:', err)
     return { bills: [], total: 0 }
-  }
-}
-
-export async function fetchBillDetail(billId: string): Promise<AssemblyBillDetail | null> {
-  if (!API_KEY) return null
-
-  try {
-    const params = new URLSearchParams({
-      KEY: API_KEY,
-      Type: 'json',
-      BILL_ID: billId,
-    })
-
-    const res = await fetch(`${BASE_URL}/BILLINFODETAIL?${params}`, {
-      next: { revalidate: 3600 },
-    })
-    if (!res.ok) throw new Error('Assembly detail API error')
-
-    const data = await res.json()
-    const row = data?.BILLINFODETAIL?.[1]?.row?.[0]
-    return row ?? null
-  } catch {
-    return null
   }
 }
