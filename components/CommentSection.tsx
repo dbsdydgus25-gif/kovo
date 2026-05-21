@@ -11,27 +11,30 @@ interface CommentSectionProps {
   userVote: VoteType | null
 }
 
-function CommentBubble({ comment, onLike, userId }: {
+function CommentBubble({ comment, number, onLike, userId }: {
   comment: Comment
+  number: number
   onLike: (id: string) => void
   userId: string | null
 }) {
   const isAgree = comment.vote_type === 'agree'
+  const isDisagree = comment.vote_type === 'disagree'
+  const dotColor = isAgree ? '#0038A8' : isDisagree ? '#C60C30' : '#9CA3AF'
 
   return (
-    <div className="flex gap-3 py-3 border-b border-gray-50 last:border-0 fade-in-up">
+    <div className="flex gap-3 py-3 border-b border-gray-50 last:border-0">
       {/* Avatar */}
       <div
-        className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[12px] font-bold"
-        style={{ background: isAgree ? '#0038A8' : '#C60C30' }}
+        className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[11px] font-bold"
+        style={{ background: dotColor }}
       >
-        {isAgree ? '👍' : '👎'}
+        {number}
       </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[12px] font-semibold" style={{ color: isAgree ? '#0038A8' : '#C60C30' }}>
-            익명 {isAgree ? '찬성러' : '반대러'}
+          <span className="text-[12px] font-semibold text-[#1C1917]">
+            익명 {number}
           </span>
           <span className="text-[11px] text-gray-400">{formatRelativeTime(comment.created_at)}</span>
         </div>
@@ -199,14 +202,22 @@ export default function CommentSection({ issueId, userId, userVote }: CommentSec
             <p className="text-[12px] text-gray-300 mt-1">첫 번째 의견을 남겨보세요</p>
           </div>
         ) : (
-          comments.map(comment => (
-            <CommentBubble
-              key={comment.id}
-              comment={comment}
-              onLike={handleLike}
-              userId={userId}
-            />
-          ))
+          (() => {
+            // 시간순 정렬로 번호 부여 (오래된 댓글 = 익명 1)
+            const sorted = [...comments].sort(
+              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            )
+            const numMap = new Map(sorted.map((c, i) => [c.id, i + 1]))
+            return comments.map(comment => (
+              <CommentBubble
+                key={comment.id}
+                comment={comment}
+                number={numMap.get(comment.id) ?? 1}
+                onLike={handleLike}
+                userId={userId}
+              />
+            ))
+          })()
         )}
       </div>
     </div>
