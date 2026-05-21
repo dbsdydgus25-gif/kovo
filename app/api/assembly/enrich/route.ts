@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { fetchMemberParty } from '@/lib/assembly-api'
 
 export const maxDuration = 300
 
@@ -41,7 +42,6 @@ async function processWithClaude(
   pro_summary: string
   con_summary: string
   category: string
-  party: string
 } | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return null
@@ -59,14 +59,13 @@ async function processWithClaude(
   "summary": "이 법안이 무엇을 바꾸려는지 2문장 (숫자/구체적 변화 포함)",
   "pro_summary": "찬성 측 핵심 주장 1~2문장",
   "con_summary": "반대 측 핵심 주장 1~2문장",
-  "category": "${CATEGORIES.join('/')} 중 하나",
-  "party": "${PARTIES.join('/')} 중 하나"
+  "category": "${CATEGORIES.join('/')} 중 하나"
 }`
 
   try {
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 700,
+      max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     })
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
@@ -79,7 +78,6 @@ async function processWithClaude(
       pro_summary: parsed.pro_summary ?? '',
       con_summary: parsed.con_summary ?? '',
       category: CATEGORIES.includes(parsed.category) ? parsed.category : inferCategory(committee, billName),
-      party: PARTIES.includes(parsed.party) ? parsed.party : '기타',
     }
   } catch {
     return null
@@ -119,6 +117,12 @@ export async function GET(request: NextRequest) {
     const proposer = bill.proposer ?? apiData?.RST_PROPOSER ?? ''
     const committee = apiData?.CURR_COMMITTEE ?? null
 
+    // 실제 당 정보를 의원 정보 API에서 조회
+    const proposerKind = apiData?.PROPOSER_KIND ?? '의원'
+    const actualParty = proposerKind === '정부'
+      ? '정부'
+      : await fetchMemberParty(proposer)
+
     const processed = await processWithClaude(billName, proposer, committee)
 
     if (!processed) {
@@ -134,7 +138,7 @@ export async function GET(request: NextRequest) {
         pro_summary: processed.pro_summary,
         con_summary: processed.con_summary,
         category: processed.category,
-        party: processed.party,
+        party: actualParty,
       })
       .eq('id', bill.id)
 

@@ -75,9 +75,24 @@ export default async function IssuePage({ params }: Props) {
         userVote = (vote?.vote_type as VoteType) ?? null
       }
 
-      const { data: allVotes } = await supabase
-        .from('votes').select('vote_type, age_group, gender, region, occupation').eq('issue_id', id)
-      votes = allVotes ?? []
+      // votes 테이블에는 인구통계 없음 — profiles와 JOIN
+      const { data: rawVotes } = await supabase
+        .from('votes').select('vote_type, user_id').eq('issue_id', id)
+
+      if (rawVotes && rawVotes.length > 0) {
+        const userIds = rawVotes.map(v => v.user_id)
+        const { data: profiles } = await supabase
+          .from('profiles').select('id, age_group, gender, region, occupation')
+          .in('id', userIds)
+        const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+        votes = rawVotes.map(v => ({
+          vote_type: v.vote_type,
+          age_group: profileMap[v.user_id]?.age_group ?? null,
+          gender: profileMap[v.user_id]?.gender ?? null,
+          region: profileMap[v.user_id]?.region ?? null,
+          occupation: profileMap[v.user_id]?.occupation ?? null,
+        }))
+      }
     } catch {
       typedIssue = MOCK_ISSUES.find(i => i.id === id) ?? null
     }

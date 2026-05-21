@@ -103,7 +103,7 @@ export default function InsightsChart({ byAge, byGender, byRegion, byOccupation 
       <div className="px-4 pb-4 pt-2">
         {currentData.length === 0 ? (
           <div className="py-8 text-center text-[13px] text-gray-400">
-            아직 충분한 투표 데이터가 없습니다
+            인구통계 정보를 입력한 투표자가 없어요
           </div>
         ) : (
           currentData.map(item => <DemoBar key={item.label} item={item} />)

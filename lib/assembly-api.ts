@@ -1,6 +1,30 @@
 const BASE_URL = 'https://open.assembly.go.kr/portal/openapi'
 const API_KEY = process.env.ASSEMBLY_API_KEY || ''
 
+const KNOWN_PARTIES = ['더불어민주당', '국민의힘', '조국혁신당', '개혁신당']
+const partyCache: Record<string, string> = {}
+
+export async function fetchMemberParty(name: string): Promise<string> {
+  if (!name) return '기타'
+  if (partyCache[name]) return partyCache[name]
+  if (!API_KEY) return '기타'
+  try {
+    const params = new URLSearchParams({ KEY: API_KEY, Type: 'json', pIndex: '1', pSize: '1', HG_NM: name })
+    const res = await fetch(`${BASE_URL}/nprlapfmkoflxwwj?${params}`, {
+      signal: AbortSignal.timeout(4000),
+    })
+    if (!res.ok) return '기타'
+    const data = await res.json()
+    const row = data?.nprlapfmkoflxwwj?.[1]?.row?.[0]
+    const polyNm: string = row?.POLY_NM ?? ''
+    const party = KNOWN_PARTIES.find(p => polyNm.includes(p)) ?? '기타'
+    partyCache[name] = party
+    return party
+  } catch {
+    return '기타'
+  }
+}
+
 export interface AssemblyBill {
   BILL_ID: string
   BILL_NO: string

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { fetchRecentBills } from '@/lib/assembly-api'
+import { fetchRecentBills, fetchMemberParty } from '@/lib/assembly-api'
 
 export const maxDuration = 300
 
@@ -48,16 +48,14 @@ async function processWithClaude(billName: string, proposer: string, committee: 
   "summary": "이 법안이 무엇을 바꾸려는지 2문장 (숫자/구체적 변화 포함)",
   "pro_summary": "찬성 측 핵심 주장 1~2문장",
   "con_summary": "반대 측 핵심 주장 1~2문장",
-  "category": "${CATEGORIES.join('/')} 중 하나",
-  "party": "${PARTIES.join('/')} 중 하나"
+  "category": "${CATEGORIES.join('/')} 중 하나"
 }`
 
-  // 최대 2번 시도
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 700,
+        max_tokens: 600,
         messages: [{ role: 'user', content: prompt }],
       })
       const text = response.content[0].type === 'text' ? response.content[0].text : ''
@@ -70,7 +68,6 @@ async function processWithClaude(billName: string, proposer: string, committee: 
         pro_summary: parsed.pro_summary ?? '',
         con_summary: parsed.con_summary ?? '',
         category: CATEGORIES.includes(parsed.category) ? parsed.category : inferCategory(committee, billName),
-        party: PARTIES.includes(parsed.party) ? parsed.party : '기타',
       }
     } catch {
       if (attempt === 0) await new Promise(r => setTimeout(r, 500))
@@ -107,13 +104,18 @@ export async function GET() {
 
       if (existing) { skipped++; continue }
 
+      // 실제 당 정보를 의원 정보 API에서 조회
+      const actualParty = bill.PROPOSER_KIND === '정부'
+        ? '정부'
+        : await fetchMemberParty(bill.RST_PROPOSER)
+
       const { data: newIssue, error } = await supabase.from('issues').insert({
         title: bill.BILL_NAME.slice(0, 60),
         summary: `${bill.PROPOSER} 발의`,
         pro_summary: '',
         con_summary: '',
         category: inferCategory(bill.CURR_COMMITTEE, bill.BILL_NAME),
-        party: bill.PROPOSER_KIND === '정부' ? '정부' : '기타',
+        party: actualParty,
         proposer: bill.RST_PROPOSER,
         bill_no: bill.BILL_NO,
         source_url: bill.LINK_URL,
@@ -151,7 +153,7 @@ export async function GET() {
           pro_summary: processed.pro_summary,
           con_summary: processed.con_summary,
           category: processed.category,
-          party: processed.party,
+          // party는 이미 의원 정보 API로 설정됨 — 덮어쓰지 않음
         }).eq('id', id)
         if (!error) enriched++
       }
