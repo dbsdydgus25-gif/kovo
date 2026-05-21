@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { fetchRecentBills } from '@/lib/assembly-api'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 const CATEGORIES = ['경제', '안보', '복지', '교육', '의료', '정치']
 const PARTIES = ['더불어민주당', '국민의힘', '조국혁신당', '개혁신당', '정부', '기타']
@@ -24,7 +23,6 @@ function inferCategory(committee: string | null, billName: string): string {
       if (committee.includes(key)) return cat
     }
   }
-  // fallback: bill name keywords
   if (/의료|병원|보건|간호|약사/.test(billName)) return '의료'
   if (/교육|학교|학생|대학/.test(billName)) return '교육'
   if (/국방|군|병역|안보/.test(billName)) return '안보'
@@ -36,7 +34,6 @@ function inferCategory(committee: string | null, billName: string): string {
 async function processWithClaude(
   billName: string,
   proposer: string,
-  rstProposer: string,
   committee: string | null
 ): Promise<{
   title: string
@@ -54,17 +51,12 @@ async function processWithClaude(
   const prompt = `22대 국회 계류 법안을 분석해서 반드시 아래 JSON 형식으로만 응답해. 다른 텍스트 없이 JSON만.
 
 법안명: ${billName}
-대표발의자: ${rstProposer} (${proposer})
+대표발의자: ${proposer}
 소관위원회: ${committee ?? '미배정'}
-
-분석 요청:
-1. 이 법안이 실제로 무엇을 바꾸는지 파악 (법안명에서 핵심 내용 추론)
-2. 대표발의자 이름으로 22대 국회의원 소속 정당 판단
-3. 찬반 논거는 편향 없이 양쪽 시각을 공정하게
 
 {
   "title": "고등학생도 이해하는 제목 (20자 이내, '~법 개정안' 같은 표현 금지)",
-  "summary": "이 법안이 무엇을 바꾸려는지 2문장 (숫자/구체적 변화 포함, 가능하면)",
+  "summary": "이 법안이 무엇을 바꾸려는지 2문장 (숫자/구체적 변화 포함)",
   "pro_summary": "찬성 측 핵심 주장 1~2문장",
   "con_summary": "반대 측 핵심 주장 1~2문장",
   "category": "${CATEGORIES.join('/')} 중 하나",
@@ -77,11 +69,9 @@ async function processWithClaude(
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }],
     })
-
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) return null
-
     const parsed = JSON.parse(jsonMatch[0])
     return {
       title: (parsed.title ?? billName).slice(0, 60),
@@ -91,83 +81,73 @@ async function processWithClaude(
       category: CATEGORIES.includes(parsed.category) ? parsed.category : inferCategory(committee, billName),
       party: PARTIES.includes(parsed.party) ? parsed.party : '기타',
     }
-  } catch (err) {
-    console.error('Claude processing failed:', err)
+  } catch {
     return null
   }
 }
 
-export async function GET() {
-  return runSync()
-}
-
-export async function POST(_request: NextRequest) {
-  return runSync()
-}
-
-async function runSync() {
+export async function GET(request: NextRequest) {
+  const limit = Number(request.nextUrl.searchParams.get('limit') ?? '10')
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  try {
-    const { bills, total } = await fetchRecentBills(1, 30)
+  // Find bills that have fallback summary (ends with '발의') — unprocessed
+  const { data: rawBills, error } = await supabase
+    .from('issues')
+    .select('id, title, proposer, summary, api_data')
+    .like('summary', '%발의')
+    .not('bill_no', 'is', null)
+    .limit(limit)
 
-    if (bills.length === 0) {
-      return NextResponse.json({
-        success: true,
-        inserted: 0,
-        message: 'No bills fetched — check ASSEMBLY_API_KEY',
-      })
-    }
-
-    let inserted = 0
-    let skipped = 0
-    let claudeCalls = 0
-    const MAX_CLAUDE_PER_RUN = 5
-
-    for (const bill of bills) {
-      const { data: existing } = await supabase
-        .from('issues')
-        .select('id')
-        .eq('bill_no', bill.BILL_NO)
-        .single()
-
-      if (existing) { skipped++; continue }
-
-      const shouldUseClaude = claudeCalls < MAX_CLAUDE_PER_RUN
-      const processed = shouldUseClaude
-        ? await processWithClaude(bill.BILL_NAME, bill.PROPOSER, bill.RST_PROPOSER, bill.CURR_COMMITTEE)
-        : null
-      if (shouldUseClaude) claudeCalls++
-
-      const issueData = {
-        title: processed?.title ?? bill.BILL_NAME.slice(0, 60),
-        summary: processed?.summary ?? `${bill.PROPOSER} 발의`,
-        pro_summary: processed?.pro_summary ?? '',
-        con_summary: processed?.con_summary ?? '',
-        category: processed?.category ?? inferCategory(bill.CURR_COMMITTEE, bill.BILL_NAME),
-        party: processed?.party ?? (bill.PROPOSER_KIND === '정부' ? '정부' : '기타'),
-        proposer: bill.RST_PROPOSER,
-        bill_no: bill.BILL_NO,
-        source_url: bill.LINK_URL,
-        status: 'active',
-        featured: false,
-        api_data: bill as unknown as Record<string, unknown>,
-      }
-
-      const { error } = await supabase.from('issues').insert(issueData)
-      if (!error) inserted++
-      else console.error('Insert error for', bill.BILL_NO, error)
-
-      if (processed) await new Promise(r => setTimeout(r, 200))
-    }
-
-    return NextResponse.json({ success: true, inserted, skipped, total })
-  } catch (err) {
-    console.error('Assembly sync error:', err)
-    return NextResponse.json({ error: 'Sync failed', detail: String(err) }, { status: 500 })
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  if (!rawBills || rawBills.length === 0) {
+    return NextResponse.json({ success: true, enriched: 0, message: '처리할 법안이 없습니다' })
+  }
+
+  let enriched = 0
+  let failed = 0
+
+  for (const bill of rawBills) {
+    const apiData = bill.api_data as Record<string, string> | null
+    const billName = apiData?.BILL_NAME ?? bill.title
+    const proposer = bill.proposer ?? apiData?.RST_PROPOSER ?? ''
+    const committee = apiData?.CURR_COMMITTEE ?? null
+
+    const processed = await processWithClaude(billName, proposer, committee)
+
+    if (!processed) {
+      failed++
+      continue
+    }
+
+    const { error: updateError } = await supabase
+      .from('issues')
+      .update({
+        title: processed.title,
+        summary: processed.summary,
+        pro_summary: processed.pro_summary,
+        con_summary: processed.con_summary,
+        category: processed.category,
+        party: processed.party,
+      })
+      .eq('id', bill.id)
+
+    if (!updateError) enriched++
+    else failed++
+
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  return NextResponse.json({
+    success: true,
+    enriched,
+    failed,
+    remaining: (rawBills.length === limit) ? '더 있음 — limit 늘려서 다시 호출하세요' : '완료',
+  })
 }

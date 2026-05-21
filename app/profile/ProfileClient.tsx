@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
+import { CATEGORY_COLORS } from '@/lib/utils'
 
 export interface VoteRecord {
   vote_type: string
+  created_at: string
   issue_id: string
   issues: {
     id: string
@@ -19,9 +22,10 @@ export interface VoteRecord {
 
 interface Props {
   user: User
+  votes: VoteRecord[]
 }
 
-export default function ProfileClient({ user }: Props) {
+export default function ProfileClient({ user, votes }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [deleting, setDeleting] = useState(false)
@@ -51,9 +55,12 @@ export default function ProfileClient({ user }: Props) {
   const provider = user.app_metadata?.provider ?? 'email'
   const providerLabel = provider === 'kakao' ? '카카오' : provider === 'google' ? '구글' : provider
 
+  const agreeCount = votes.filter(v => v.vote_type === 'agree').length
+  const disagreeCount = votes.filter(v => v.vote_type === 'disagree').length
+
   return (
     <div className="px-4 space-y-3">
-      {/* Account info */}
+      {/* 프로필 카드 */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#0038A8] to-[#1a56d6] flex items-center justify-center flex-shrink-0">
@@ -62,29 +69,105 @@ export default function ProfileClient({ user }: Props) {
           <div>
             <p className="text-[16px] font-bold text-[#1C1917]">익명 시민</p>
             <p className="text-[12px] text-gray-400">{user.email}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">
+                {providerLabel} 로그인
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between py-2.5 border-t border-gray-50">
-            <span className="text-[13px] text-gray-500">로그인 방식</span>
-            <span className="text-[13px] font-semibold text-[#1C1917]">{providerLabel}</span>
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-50">
+          <div className="text-center">
+            <p className="text-[20px] font-black text-[#1C1917]">{votes.length}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">총 투표</p>
           </div>
-          <div className="flex items-center justify-between py-2.5 border-t border-gray-50">
-            <span className="text-[13px] text-gray-500">이메일</span>
-            <span className="text-[13px] font-semibold text-[#1C1917]">{user.email}</span>
+          <div className="text-center border-x border-gray-100">
+            <p className="text-[20px] font-black text-[#0038A8]">{agreeCount}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">찬성</p>
           </div>
-          <div className="flex items-center justify-between py-2.5 border-t border-gray-50">
-            <span className="text-[13px] text-gray-500">가입일</span>
-            <span className="text-[13px] font-semibold text-[#1C1917]">
-              {new Date(user.created_at).toLocaleDateString('ko-KR')}
-            </span>
+          <div className="text-center">
+            <p className="text-[20px] font-black text-[#C60C30]">{disagreeCount}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">반대</p>
           </div>
         </div>
       </div>
 
-      {/* Actions */}
+      {/* 투표 기록 */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="px-4 py-3.5 border-b border-gray-50 flex items-center justify-between">
+          <h3 className="text-[14px] font-bold text-[#1C1917]">내 투표 기록</h3>
+          <span className="text-[12px] text-gray-400">{votes.length}건</span>
+        </div>
+
+        {votes.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-[13px] text-gray-400">아직 투표한 안건이 없어요</p>
+            <p className="text-[12px] text-gray-300 mt-1">홈에서 안건에 투표해보세요</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {votes.map((v) => {
+              if (!v.issues) return null
+              const catColor = CATEGORY_COLORS[v.issues.category] ?? '#6B7280'
+              const total = v.issues.agree_count + v.issues.disagree_count
+              const agreePct = total > 0 ? Math.round((v.issues.agree_count / total) * 100) : 0
+              return (
+                <Link
+                  key={v.issue_id}
+                  href={`/issue/${v.issues.id}`}
+                  className="flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors"
+                >
+                  {/* 내 투표 */}
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[16px]"
+                    style={{
+                      background: v.vote_type === 'agree' ? '#0038A810' : '#C60C3010',
+                    }}
+                  >
+                    {v.vote_type === 'agree' ? '👍' : '👎'}
+                  </div>
+
+                  {/* 안건 정보 */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                        style={{ background: `${catColor}18`, color: catColor }}
+                      >
+                        {v.issues.category}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(v.created_at).toLocaleDateString('ko-KR')}
+                      </span>
+                    </div>
+                    <p className="text-[13px] font-semibold text-[#1C1917] truncate">{v.issues.title}</p>
+                    {total > 0 && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-gray-100 flex">
+                          <div className="h-full bg-[#0038A8] rounded-l-full" style={{ width: `${agreePct}%` }} />
+                          <div className="h-full bg-[#C60C30] rounded-r-full" style={{ width: `${100 - agreePct}%` }} />
+                        </div>
+                        <span className="text-[10px] text-gray-400">{total.toLocaleString()}명</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+                    <path d="M9 18L15 12L9 6" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 계정 설정 */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="px-4 py-3.5 border-b border-gray-50">
+          <h3 className="text-[14px] font-bold text-[#1C1917]">계정</h3>
+        </div>
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-50 active:bg-gray-50 transition-colors"
@@ -109,7 +192,7 @@ export default function ProfileClient({ user }: Props) {
         Kovo v1.0 — 편향 없이, 내 시각으로
       </p>
 
-      {/* Delete confirmation bottom sheet */}
+      {/* 탈퇴 확인 바텀시트 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={() => setShowDeleteConfirm(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />

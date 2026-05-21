@@ -32,6 +32,7 @@ create table public.issues (
   category text default '정치',
   party text default '공통',
   bill_no text,
+  proposer text,
   assembly_session int,
   status text default 'active' check (status in ('active', 'closed', 'pending')),
   source_url text,
