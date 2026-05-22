@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import TopBar from '@/components/TopBar'
 import BottomNav from '@/components/BottomNav'
 import LoginButton from '@/components/LoginButton'
+import NotificationBell from '@/components/NotificationBell'
 import IssueList from '@/components/IssueList'
 import Link from 'next/link'
 import { Issue } from '@/types'
@@ -76,6 +77,7 @@ export default async function HomePage({ searchParams }: Props) {
     <div className="min-h-dvh bg-[#F5F5F7]">
       <TopBar
         showLogo
+        leftAction={user ? <NotificationBell userId={user.id} /> : undefined}
         rightAction={user ? (
           <Link href="/profile">
             <div className="w-8 h-8 rounded-full bg-[#0038A8] flex items-center justify-center">

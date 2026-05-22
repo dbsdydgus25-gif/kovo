@@ -38,8 +38,30 @@ export default async function ProfilePage() {
     .order('created_at', { ascending: false })
     .limit(50)
 
+  const { data: rawComments } = await supabase
+    .from('comments')
+    .select(`
+      id,
+      content,
+      vote_type,
+      likes,
+      created_at,
+      issue_id,
+      issues (
+        id,
+        title,
+        category
+      )
+    `)
+    .eq('user_id', user.id)
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: false })
+    .limit(30)
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const votes = (rawVotes ?? []) as any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const myComments = (rawComments ?? []) as any[]
 
   return (
     <div className="min-h-dvh bg-[#F5F5F7]">
@@ -48,6 +70,7 @@ export default async function ProfilePage() {
         <ProfileClient
           user={user}
           votes={votes}
+          myComments={myComments}
           displayName={profile?.display_name ?? null}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           savedTendency={(profile as any)?.tendency_data ?? null}

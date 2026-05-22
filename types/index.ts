@@ -62,6 +62,7 @@ export interface Comment {
   vote_type: VoteType | null
   likes: number
   is_deleted: boolean
+  is_edited: boolean
   created_at: string
   has_liked?: boolean
 }

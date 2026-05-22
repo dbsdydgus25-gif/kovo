@@ -7,10 +7,11 @@ interface TopBarProps {
   title?: string
   showBack?: boolean
   showLogo?: boolean
+  leftAction?: React.ReactNode
   rightAction?: React.ReactNode
 }
 
-export default function TopBar({ title, showBack, showLogo = false, rightAction }: TopBarProps) {
+export default function TopBar({ title, showBack, showLogo = false, leftAction, rightAction }: TopBarProps) {
   const router = useRouter()
 
   return (
@@ -25,6 +26,8 @@ export default function TopBar({ title, showBack, showLogo = false, rightAction 
               <path d="M15 18L9 12L15 6" stroke="#1C1917" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+        ) : leftAction ? (
+          <div className="flex-shrink-0 flex items-center">{leftAction}</div>
         ) : (
           <div className="w-9" />
         )}

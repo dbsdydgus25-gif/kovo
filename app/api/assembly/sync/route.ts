@@ -174,6 +174,7 @@ async function runSync() {
         source_url: bill.LINK_URL,
         status: 'active',
         featured: false,
+        closes_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         api_data: bill as unknown as Record<string, unknown>,
       }
 

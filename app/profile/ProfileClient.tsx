@@ -20,6 +20,20 @@ export interface VoteRecord {
   } | null
 }
 
+export interface CommentRecord {
+  id: string
+  content: string
+  vote_type: string | null
+  likes: number
+  created_at: string
+  issue_id: string
+  issues: {
+    id: string
+    title: string
+    category: string
+  } | null
+}
+
 interface TendencyData {
   spectrum: string
   spectrum_score: number
@@ -33,6 +47,7 @@ interface TendencyData {
 interface Props {
   user: User
   votes: VoteRecord[]
+  myComments: CommentRecord[]
   displayName: string | null
   savedTendency?: TendencyData | null
 }
@@ -45,19 +60,21 @@ const SPECTRUM_COLOR: Record<string, { bg: string; text: string; bar: string }> 
   '보수':     { bg: '#FFF1F2', text: '#BE123C', bar: '#E11D48' },
 }
 
-export default function ProfileClient({ user, votes, displayName, savedTendency }: Props) {
+export default function ProfileClient({ user, votes, myComments, displayName, savedTendency }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [deleting, setDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showAllVotes, setShowAllVotes] = useState(false)
+  const [showAllComments, setShowAllComments] = useState(false)
   const [tendency, setTendency] = useState<TendencyData | null>(savedTendency ?? null)
   const [tendencyLoading, setTendencyLoading] = useState(false)
   const [tendencyError, setTendencyError] = useState<string | null>(null)
 
-  const agreeCount    = votes.filter(v => v.vote_type === 'agree').length
-  const disagreeCount = votes.filter(v => v.vote_type === 'disagree').length
-  const displayVotes  = showAllVotes ? votes : votes.slice(0, 3)
+  const agreeCount     = votes.filter(v => v.vote_type === 'agree').length
+  const disagreeCount  = votes.filter(v => v.vote_type === 'disagree').length
+  const displayVotes   = showAllVotes ? votes : votes.slice(0, 3)
+  const displayComments = showAllComments ? myComments : myComments.slice(0, 3)
 
   const provider = user.app_metadata?.provider ?? 'email'
   const providerLabel = provider === 'kakao' ? '카카오' : provider === 'google' ? '구글' : provider
@@ -315,6 +332,71 @@ export default function ProfileClient({ user, votes, displayName, savedTendency 
                 className="w-full py-3 text-[13px] font-semibold text-[#0038A8] border-t border-gray-50 active:bg-gray-50 transition-colors"
               >
                 {showAllVotes ? '접기' : `모두 보기 (${votes.length}건)`}
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 댓글 기록 */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="px-4 py-3.5 border-b border-gray-50 flex items-center justify-between">
+          <h3 className="text-[14px] font-bold text-[#1C1917]">내 댓글</h3>
+          <span className="text-[12px] text-gray-400">{myComments.length}건</span>
+        </div>
+
+        {myComments.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-[13px] text-gray-400">아직 남긴 댓글이 없어요</p>
+            <p className="text-[12px] text-gray-300 mt-1">논제에 의견을 남겨보세요</p>
+          </div>
+        ) : (
+          <>
+            <div className="divide-y divide-gray-50">
+              {displayComments.map((c) => {
+                if (!c.issues) return null
+                const catColor = CATEGORY_COLORS[c.issues.category] ?? '#6B7280'
+                return (
+                  <Link
+                    key={c.id}
+                    href={`/issue/${c.issues.id}`}
+                    className="flex items-start gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors"
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-[10px] font-bold mt-0.5"
+                      style={{ background: c.vote_type === 'agree' ? '#0038A8' : c.vote_type === 'disagree' ? '#C60C30' : '#9CA3AF' }}
+                    >
+                      {c.vote_type === 'agree' ? '찬' : c.vote_type === 'disagree' ? '반' : '–'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${catColor}18`, color: catColor }}>
+                          {c.issues.category}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(c.created_at).toLocaleDateString('ko-KR')}
+                        </span>
+                        {c.likes > 0 && (
+                          <span className="text-[10px] text-[#C60C30] font-semibold">❤️ {c.likes}</span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-gray-500 truncate">{c.issues.title}</p>
+                      <p className="text-[13px] font-medium text-[#1C1917] mt-0.5 line-clamp-2 leading-snug">{c.content}</p>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0 mt-1">
+                      <path d="M9 18L15 12L9 6" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {myComments.length > 3 && (
+              <button
+                onClick={() => setShowAllComments(v => !v)}
+                className="w-full py-3 text-[13px] font-semibold text-[#0038A8] border-t border-gray-50 active:bg-gray-50 transition-colors"
+              >
+                {showAllComments ? '접기' : `모두 보기 (${myComments.length}건)`}
               </button>
             )}
           </>
