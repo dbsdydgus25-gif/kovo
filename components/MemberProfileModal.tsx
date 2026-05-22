@@ -184,9 +184,18 @@ export default function MemberProfileModal({ name, onClose }: Props) {
               {member.bio && (
                 <div className="mb-4">
                   <p className="text-[12px] font-bold text-gray-500 mb-2 uppercase tracking-wide">약력</p>
-                  <p className="text-[13px] text-[#1C1917] leading-relaxed bg-gray-50 rounded-xl p-3">
-                    {member.bio}
-                  </p>
+                  <div className="text-[13px] text-[#1C1917] leading-relaxed bg-gray-50 rounded-xl p-3 space-y-1">
+                    {member.bio.split('·').map((item, i) => {
+                      const t = item.trim()
+                      if (!t) return null
+                      const isHeader = t.startsWith('[학력]') || t.startsWith('[경력]')
+                      return isHeader ? (
+                        <p key={i} className="font-bold text-[12px] text-gray-500 mt-2 first:mt-0">{t}</p>
+                      ) : (
+                        <p key={i} className="flex gap-1.5 items-start"><span className="text-gray-300 flex-shrink-0 mt-0.5">·</span><span>{t}</span></p>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 

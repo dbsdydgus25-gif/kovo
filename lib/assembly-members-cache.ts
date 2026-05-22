@@ -18,18 +18,39 @@ function calcAge(d: string): number | undefined {
   return isNaN(y) ? undefined : new Date().getFullYear() - y
 }
 
+/** HTML 엔티티 + 태그 정리 */
+function cleanBio(s: string): string {
+  if (!s) return ''
+  return s
+    .replace(/&middot;/g, ' · ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#\d+;/g, '')
+    .replace(/<학력>/g, '[학력]')
+    .replace(/<경력>/g, '[경력]')
+    .replace(/<[^>]+>/g, '')   // 나머지 HTML 태그 제거
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+/** PLPT_NM은 "새누리당/미래통합당/국민의힘" 형태 → 현재 당(마지막) */
+function currentParty(plptNm: string): string {
+  if (!plptNm) return ''
+  const parts = plptNm.split('/').map(p => p.trim()).filter(Boolean)
+  return parts[parts.length - 1] ?? ''
+}
+
 function mapRow(row: Record<string, string>): AssemblyMember {
   const birthDate = (row.BIRDY_DT ?? '').replace(/-/g, '')
-
-  // 사진: NAAS_PIC가 URL이면 그대로, 코드면 조합
   const pic = row.NAAS_PIC ?? ''
   const photoUrl = pic.startsWith('http') ? pic
     : pic ? `https://open.assembly.go.kr/portal/img/naas/${pic}.jpg`
     : ''
 
-  // 당선대수: RLCT_DIV_NM(초선/재선/3선) 또는 GTELT_ERACO(숫자)
-  const rlct = row.RLCT_DIV_NM ?? ''
-  const eraco = row.GTELT_ERACO ?? ''
+  const rlct    = row.RLCT_DIV_NM ?? ''   // 초선/재선/3선
+  const eraco   = row.GTELT_ERACO ?? ''   // 당선대수 숫자
   const sessions = rlct || (eraco ? `${eraco}선` : '22대')
 
   return {
@@ -37,14 +58,14 @@ function mapRow(row: Record<string, string>): AssemblyMember {
     engName:      row.NAAS_EN_NM ?? '',
     birthDate,
     age:          calcAge(birthDate),
-    party:        row.PLPT_NM ?? '',
+    party:        currentParty(row.PLPT_NM ?? ''),
     constituency: row.ELECD_NM ?? '',
     electionType: row.ELECD_DIV_NM ?? '',
     committee:    row.CMIT_NM ?? '',
     committees:   row.BLNG_CMIT_NM ?? '',
-    billCount:    '',   // ALLNAMEMBER에 없음
+    billCount:    '',
     sex:          row.NTR_DIV ?? '',
-    bio:          row.BRF_HST ?? '',
+    bio:          cleanBio(row.BRF_HST ?? ''),
     photoUrl,
     sessions,
     monaCd:       row.NAAS_CD ?? '',
@@ -67,7 +88,7 @@ export async function getAllMembers(apiKey: string): Promise<AssemblyMember[]> {
 
     const res = await fetch(`${BASE_URL}/${ENDPOINT}?${params}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal:  AbortSignal.timeout(10000),
+      signal:  AbortSignal.timeout(15000),
     })
     if (!res.ok) break
 

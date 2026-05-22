@@ -105,6 +105,19 @@ export async function POST(_request: NextRequest) {
   return runSync()
 }
 
+/** Supabase assembly_members에서 의원 정당 조회 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function lookupParty(supabase: any, proposerName: string): Promise<string | null> {
+  if (!proposerName) return null
+  const { data } = await supabase
+    .from('assembly_members')
+    .select('party')
+    .or(`name.eq.${proposerName},name.ilike.%${proposerName}%`)
+    .limit(1)
+    .maybeSingle()
+  return (data as { party?: string } | null)?.party ?? null
+}
+
 async function runSync() {
 
   const supabase = createServerClient(
@@ -143,13 +156,19 @@ async function runSync() {
         : null
       if (shouldUseClaude) claudeCalls++
 
+      // 정당: DB 우선 → Claude 결과 → 정부여부 → 기타
+      const dbParty = await lookupParty(supabase, bill.RST_PROPOSER)
+      const finalParty = dbParty
+        ?? (processed?.party && processed.party !== '기타' ? processed.party : null)
+        ?? (bill.PROPOSER_KIND === '정부' ? '정부' : '기타')
+
       const issueData = {
         title: processed?.title ?? bill.BILL_NAME.slice(0, 60),
         summary: processed?.summary ?? `${bill.PROPOSER} 발의`,
         pro_summary: processed?.pro_summary ?? '',
         con_summary: processed?.con_summary ?? '',
         category: processed?.category ?? inferCategory(bill.CURR_COMMITTEE, bill.BILL_NAME),
-        party: processed?.party ?? (bill.PROPOSER_KIND === '정부' ? '정부' : '기타'),
+        party: finalParty,
         proposer: bill.RST_PROPOSER,
         bill_no: bill.BILL_NO,
         source_url: bill.LINK_URL,
