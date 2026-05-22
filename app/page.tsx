@@ -90,7 +90,7 @@ export default async function HomePage({ searchParams }: Props) {
       />
 
       {/* Main feed */}
-      <div className="pt-[112px] pb-[84px] px-4 space-y-3">
+      <div className="pt-[156px] pb-[84px] px-4 space-y-3">
         {/* Service banner — always visible */}
         <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #0038A8 0%, #1a56d6 60%, #003b93 100%)' }}>
           <div className="p-4">
