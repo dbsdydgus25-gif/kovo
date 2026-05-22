@@ -49,7 +49,7 @@ export default function TopBar({ title, showBack, showLogo = false, rightAction 
           )}
         </div>
 
-        <div className="w-9 flex justify-end">
+        <div className="flex-shrink-0 flex justify-end items-center">
           {rightAction}
         </div>
       </div>

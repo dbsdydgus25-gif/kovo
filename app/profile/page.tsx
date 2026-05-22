@@ -16,7 +16,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, age_group, gender, region, occupation')
+    .select('display_name, age_group, gender, region, occupation, tendency_data, tendency_updated_at')
     .eq('id', user.id)
     .single()
 
@@ -45,7 +45,13 @@ export default async function ProfilePage() {
     <div className="min-h-dvh bg-[#F5F5F7]">
       <TopBar title="내 정보" />
       <div className="pt-[72px] pb-[84px]">
-        <ProfileClient user={user} votes={votes} displayName={profile?.display_name ?? null} />
+        <ProfileClient
+          user={user}
+          votes={votes}
+          displayName={profile?.display_name ?? null}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          savedTendency={(profile as any)?.tendency_data ?? null}
+        />
       </div>
       <BottomNav />
     </div>

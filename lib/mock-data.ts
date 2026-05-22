@@ -21,6 +21,7 @@ export const MOCK_ISSUES: Issue[] = [
     comment_count: 342,
     featured: true,
     created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+    closes_at: null,
     updated_at: new Date().toISOString(),
   },
   {
@@ -43,6 +44,7 @@ export const MOCK_ISSUES: Issue[] = [
     comment_count: 892,
     featured: true,
     created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+    closes_at: null,
     updated_at: new Date().toISOString(),
   },
   {
@@ -65,6 +67,7 @@ export const MOCK_ISSUES: Issue[] = [
     comment_count: 1204,
     featured: false,
     created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+    closes_at: null,
     updated_at: new Date().toISOString(),
   },
   {
@@ -87,6 +90,7 @@ export const MOCK_ISSUES: Issue[] = [
     comment_count: 2341,
     featured: false,
     created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+    closes_at: null,
     updated_at: new Date().toISOString(),
   },
   {
@@ -109,6 +113,7 @@ export const MOCK_ISSUES: Issue[] = [
     comment_count: 4521,
     featured: true,
     created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
+    closes_at: null,
     updated_at: new Date().toISOString(),
   },
 ]

@@ -126,9 +126,7 @@ export default async function HomePage({ searchParams }: Props) {
           )}
         </div>
 
-        {/* Issue list with instant client-side category switching */}
         <IssueList
-          initialCategory={activeCategory}
           initialIssues={issueList}
           initialUserVotes={userVotes}
           userId={user?.id ?? null}

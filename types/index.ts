@@ -37,6 +37,7 @@ export interface Issue {
   disagree_count: number
   comment_count: number
   featured: boolean
+  closes_at: string | null
   created_at: string
   updated_at: string
 }
