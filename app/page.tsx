@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
-import IssueCard from '@/components/IssueCard'
 import TopBar from '@/components/TopBar'
 import BottomNav from '@/components/BottomNav'
 import LoginButton from '@/components/LoginButton'
-import CategoryFilter from '@/components/CategoryFilter'
+import IssueList from '@/components/IssueList'
 import Link from 'next/link'
 import { Issue } from '@/types'
 import { MOCK_ISSUES } from '@/lib/mock-data'
@@ -88,11 +87,6 @@ export default async function HomePage({ searchParams }: Props) {
         )}
       />
 
-      {/* Category filter */}
-      <div className="fixed top-[56px] left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-[#F5F5F7] z-30 px-4 py-2.5">
-        <CategoryFilter active={activeCategory} />
-      </div>
-
       {/* Main feed */}
       <div className="pt-[112px] pb-[84px] px-4 space-y-3">
         {/* Service banner — always visible */}
@@ -132,24 +126,13 @@ export default async function HomePage({ searchParams }: Props) {
           )}
         </div>
 
-        {issueList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <span className="text-3xl">🗳️</span>
-            </div>
-            <p className="text-[15px] font-medium text-gray-500">아직 논제가 없습니다</p>
-            <p className="text-[13px] text-gray-400 mt-1">곧 새로운 안건이 등록됩니다</p>
-          </div>
-        ) : (
-          issueList.map(issue => (
-            <div key={issue.id} className="fade-in-up">
-              <IssueCard
-                issue={issue}
-                userVote={userVotes[issue.id] ?? null}
-              />
-            </div>
-          ))
-        )}
+        {/* Issue list with instant client-side category switching */}
+        <IssueList
+          initialCategory={activeCategory}
+          initialIssues={issueList}
+          initialUserVotes={userVotes}
+          userId={user?.id ?? null}
+        />
       </div>
 
       <BottomNav />

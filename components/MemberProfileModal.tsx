@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { AssemblyMember } from '@/lib/assembly-member-api'
+import Portal from './Portal'
 
 interface Props {
   name: string
@@ -31,12 +32,20 @@ export default function MemberProfileModal({ name, onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
 
+  const [apiError, setApiError] = useState<string | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
+    setApiError(null)
     try {
       const res = await fetch(`/api/member?name=${encodeURIComponent(name)}`)
-      if (res.ok) setMember(await res.json())
-    } catch { /* ignore */ }
+      const json = await res.json()
+      if (res.ok) {
+        setMember(json)
+      } else {
+        setApiError(json?.error ?? '알 수 없는 오류')
+      }
+    } catch { setApiError('네트워크 오류') }
     setLoading(false)
   }, [name])
 
@@ -56,8 +65,9 @@ export default function MemberProfileModal({ name, onClose }: Props) {
   }
 
   return (
+    <Portal>
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-[100] flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.45)' }}
       onClick={handleBackdrop}
     >
@@ -91,9 +101,25 @@ export default function MemberProfileModal({ name, onClose }: Props) {
               <p className="text-[13px] text-gray-400">국회 API에서 불러오는 중...</p>
             </div>
           ) : !member ? (
-            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-              <p className="text-[14px] font-medium text-gray-500">의원 정보를 찾을 수 없습니다</p>
-              <p className="text-[12px] text-gray-400 mt-1">{name} 의원 정보를 조회하지 못했습니다</p>
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+              {apiError === 'ASSEMBLY_API_KEY not configured' ? (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-3">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#D97706" strokeWidth="2" strokeLinecap="round"/></svg>
+                  </div>
+                  <p className="text-[14px] font-bold text-[#1C1917] mb-1">국회 API 키 미설정</p>
+                  <p className="text-[12px] text-gray-400 leading-relaxed">
+                    Vercel → Settings → Environment Variables에서<br/>
+                    <span className="font-mono font-bold text-gray-600">ASSEMBLY_API_KEY</span> 를 추가하고 재배포해주세요
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[14px] font-medium text-gray-500">의원 정보를 찾을 수 없습니다</p>
+                  <p className="text-[12px] text-gray-400 mt-1">{name} 의원 정보를 조회하지 못했습니다</p>
+                  {apiError && <p className="text-[11px] text-red-400 mt-2 font-mono">{apiError}</p>}
+                </>
+              )}
             </div>
           ) : (
             <div className="px-5 pb-8">
@@ -198,5 +224,6 @@ export default function MemberProfileModal({ name, onClose }: Props) {
         </div>
       </div>
     </div>
+    </Portal>
   )
 }

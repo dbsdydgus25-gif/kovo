@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Portal from './Portal'
 
 interface AuthModalProps {
   onClose: () => void
@@ -32,6 +33,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   }
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
@@ -91,5 +93,6 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         </p>
       </div>
     </div>
+    </Portal>
   )
 }

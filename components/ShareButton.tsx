@@ -13,11 +13,10 @@ export default function ShareButton({ title }: { title: string }) {
         className="w-9 h-9 flex items-center justify-center btn-press"
         aria-label="공유"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <circle cx="18" cy="5" r="3" stroke="#1C1917" strokeWidth="2"/>
-          <circle cx="6" cy="12" r="3" stroke="#1C1917" strokeWidth="2"/>
-          <circle cx="18" cy="19" r="3" stroke="#1C1917" strokeWidth="2"/>
-          <path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49" stroke="#1C1917" strokeWidth="2" strokeLinecap="round"/>
+        {/* paper airplane — like Instagram DM */}
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M22 2L11 13" stroke="#1C1917" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#1C1917" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
       {open && <ShareSheet title={title} onClose={() => setOpen(false)} />}
