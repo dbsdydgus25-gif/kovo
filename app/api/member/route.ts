@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllMembers, findByName, fetchPrevSessions } from '@/lib/assembly-members-cache'
+import { getAllMembers, findByName } from '@/lib/assembly-members-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,12 +29,6 @@ export async function GET(request: NextRequest) {
       total_cached: all.length,
       searched:     name,
     }, { status: 404 })
-  }
-
-  // bio에서 이전 대수 못 찾으면 API 보완
-  if (member.sessions === '22대') {
-    const sessions = await fetchPrevSessions(name, apiKey)
-    return NextResponse.json({ ...member, sessions })
   }
 
   return NextResponse.json(member)
