@@ -4,35 +4,20 @@ const API_KEY = process.env.ASSEMBLY_API_KEY || ''
 export const KNOWN_PARTIES = ['더불어민주당', '국민의힘', '조국혁신당', '개혁신당']
 const partyCache: Record<string, string> = {}
 
-// 22대 국회의원 당 조회 — Assembly API nwvrqwavdgbnynftam POLY_NM 필드 사용
+// 22대 국회의원 당 조회 — bulk 캐시에서 검색 (nprlapfmkoflxwwj 엔드포인트)
 export async function fetchMemberParty(name: string): Promise<string> {
   if (!name || name === '정부') return name === '정부' ? '정부' : '기타'
   if (partyCache[name]) return partyCache[name]
   if (!API_KEY) return '기타'
 
   try {
-    const params = new URLSearchParams({
-      KEY: API_KEY,
-      Type: 'json',
-      pIndex: '1',
-      pSize: '1',
-      HMG_NM: name,
-      AGE: '22',
-    })
-    const res = await fetch(`${BASE_URL}/nwvrqwavdgbnynftam?${params}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 86400 },
-    })
-    if (!res.ok) return '기타'
+    const { getAllMembers, findByName } = await import('./assembly-members-cache')
+    const all    = await getAllMembers(API_KEY)
+    const member = findByName(all, name)
+    if (!member?.party) return '기타'
 
-    const data = await res.json()
-    const root = data?.nwvrqwavdgbnynftam
-    const resultCode = root?.[0]?.head?.[1]?.RESULT?.CODE
-    if (resultCode !== 'INFO-000') return '기타'
-
-    const party: string = root?.[1]?.row?.[0]?.POLY_NM ?? '기타'
-    partyCache[name] = party
-    return party
+    partyCache[name] = member.party
+    return member.party
   } catch {
     return '기타'
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { BILL_STAGES } from '@/lib/assembly-member-api'
+import { BILL_STAGES } from '@/lib/assembly-stage'
 
 interface Props {
   currentStage: number   // 0–5
