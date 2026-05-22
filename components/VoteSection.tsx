@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Issue, VoteType } from '@/types'
 import { formatNumber, getVotePercentage } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { getBillStageFromApiData } from '@/lib/assembly-member-api'
 import AuthModal from './AuthModal'
+import BillStageProgress from './BillStageProgress'
+import MemberProfileModal from './MemberProfileModal'
 
 interface VoteSectionProps {
   issue: Issue
@@ -26,8 +29,11 @@ export default function VoteSection({ issue, userVote: initialVote, userId }: Vo
   const [disagreeCnt, setDisagreeCnt] = useState(issue.disagree_count)
   const [loading, setLoading] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
+
+  const { stageIdx, stageDate } = getBillStageFromApiData(issue.api_data)
 
   const hasVoted = !!userVote
   const { agree, disagree, total } = getVotePercentage(agreeCnt, disagreeCnt)
@@ -65,6 +71,12 @@ export default function VoteSection({ issue, userVote: initialVote, userId }: Vo
   return (
     <>
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {selectedMember && (
+        <MemberProfileModal
+          name={selectedMember}
+          onClose={() => setSelectedMember(null)}
+        />
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
@@ -172,8 +184,13 @@ export default function VoteSection({ issue, userVote: initialVote, userId }: Vo
                 </div>
               </div>
 
+              {/* 심사진행단계 — 투표 후 공개 */}
+              <div className="mt-4">
+                <BillStageProgress currentStage={stageIdx} stageDate={stageDate} />
+              </div>
+
               {/* 발의자 공개 — 투표 후에만 */}
-              <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="mt-3 pt-4 border-t border-gray-100">
                 <p className="text-[11px] text-gray-400 mb-2 font-medium">이 안건을 발의한 사람</p>
                 <div className="flex items-center gap-2.5">
                   <span
@@ -182,9 +199,19 @@ export default function VoteSection({ issue, userVote: initialVote, userId }: Vo
                   >
                     {issue.party}
                   </span>
-                  <span className="text-[14px] font-semibold text-[#1C1917]">
-                    {issue.proposer === '정부' ? '정부 제출 법안' : `${issue.proposer} 의원 발의`}
-                  </span>
+                  {issue.proposer && issue.proposer !== '정부' ? (
+                    <button
+                      onClick={() => setSelectedMember(issue.proposer)}
+                      className="flex items-center gap-1 text-[14px] font-bold text-[#0038A8] underline underline-offset-2 active:opacity-70"
+                    >
+                      {issue.proposer} 의원
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18L15 12L9 6" stroke="#0038A8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  ) : (
+                    <span className="text-[14px] font-semibold text-[#1C1917]">정부 제출 법안</span>
+                  )}
                 </div>
                 <p className="text-[11px] text-gray-400 mt-2.5 flex items-center gap-1">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none">

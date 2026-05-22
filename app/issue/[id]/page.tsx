@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import VoteSection from '@/components/VoteSection'
 import InsightsChart from '@/components/InsightsChart'
 import CommentSection from '@/components/CommentSection'
+import ShareButton from '@/components/ShareButton'
 import { Issue, VoteType, DemographicInsight } from '@/types'
 import { CATEGORY_COLORS } from '@/lib/utils'
 import { MOCK_ISSUES } from '@/lib/mock-data'
@@ -16,6 +17,7 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ _dv?: string }>
 }
 
 const AGE_GROUPS = ['10대', '20대', '30대', '40대', '50대', '60대이상']
@@ -36,8 +38,9 @@ function buildInsights(
   })
 }
 
-export default async function IssuePage({ params }: Props) {
+export default async function IssuePage({ params, searchParams }: Props) {
   const { id } = await params
+  const { _dv } = await searchParams
 
   let typedIssue: Issue | null = null
   let userVote: VoteType | null = null
@@ -46,6 +49,7 @@ export default async function IssuePage({ params }: Props) {
 
   if (IS_DEMO) {
     typedIssue = MOCK_ISSUES.find(i => i.id === id) ?? null
+    if (_dv === 'agree' || _dv === 'disagree') userVote = _dv
     // Mock demographic data for demo
     if (typedIssue) {
       const total = typedIssue.agree_count + typedIssue.disagree_count
@@ -105,7 +109,7 @@ export default async function IssuePage({ params }: Props) {
 
   return (
     <div className="min-h-dvh bg-[#F5F5F7]">
-      <TopBar showBack title={typedIssue.category} />
+      <TopBar showBack title={typedIssue.category} rightAction={<ShareButton title={typedIssue.title} />} />
 
       <div className="pt-[72px] pb-[84px] px-4 space-y-3">
         {/* Issue header card */}

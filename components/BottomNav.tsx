@@ -1,7 +1,7 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useTransition } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 
 const navItems = [
   {
@@ -55,6 +55,8 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [, startTransition] = useTransition()
 
   return (
     <nav
@@ -65,9 +67,9 @@ export default function BottomNav() {
         {navItems.map(({ href, label, icon }) => {
           const active = pathname === href || (href !== '/' && pathname.startsWith(href))
           return (
-            <Link
+            <button
               key={href}
-              href={href}
+              onClick={() => startTransition(() => router.push(href))}
               className="flex flex-col items-center gap-0.5 flex-1 py-2 btn-press"
             >
               {icon(active)}
@@ -77,7 +79,7 @@ export default function BottomNav() {
               >
                 {label}
               </span>
-            </Link>
+            </button>
           )
         })}
       </div>

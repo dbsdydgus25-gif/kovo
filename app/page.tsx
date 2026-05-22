@@ -3,13 +3,12 @@ import IssueCard from '@/components/IssueCard'
 import TopBar from '@/components/TopBar'
 import BottomNav from '@/components/BottomNav'
 import LoginButton from '@/components/LoginButton'
+import CategoryFilter from '@/components/CategoryFilter'
 import Link from 'next/link'
 import { Issue } from '@/types'
 import { MOCK_ISSUES } from '@/lib/mock-data'
 
 export const dynamic = 'force-dynamic'
-
-const CATEGORIES = ['전체', '경제', '안보', '복지', '교육', '의료', '정치']
 
 const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('supabase.co') ||
   process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder')
@@ -91,22 +90,7 @@ export default async function HomePage({ searchParams }: Props) {
 
       {/* Category filter */}
       <div className="fixed top-[56px] left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-[#F5F5F7] z-30 px-4 py-2.5">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          {CATEGORIES.map(cat => (
-            <Link
-              key={cat}
-              href={cat === '전체' ? '/' : `/?category=${encodeURIComponent(cat)}`}
-              className="flex-shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition-colors btn-press whitespace-nowrap"
-              style={{
-                background: activeCategory === cat ? '#0038A8' : 'white',
-                color: activeCategory === cat ? 'white' : '#78716C',
-                border: activeCategory === cat ? 'none' : '1px solid #E5E7EB',
-              }}
-            >
-              {cat}
-            </Link>
-          ))}
-        </div>
+        <CategoryFilter active={activeCategory} />
       </div>
 
       {/* Main feed */}
