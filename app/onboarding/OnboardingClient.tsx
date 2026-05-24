@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { REGIONS, OCCUPATIONS } from '@/lib/utils'
 
 const AGE_GROUPS = ['10대', '20대', '30대', '40대', '50대', '60대이상']
-const GENDERS = ['남성', '여성', '기타', '응답거부']
+const GENDERS = ['남성', '여성']
 
 type Step = 'name' | 'gender' | 'age' | 'region' | 'occupation'
 const STEPS: Step[] = ['name', 'gender', 'age', 'region', 'occupation']
