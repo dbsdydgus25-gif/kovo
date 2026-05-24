@@ -72,7 +72,7 @@ export default function IssueList({ initialIssues, initialUserVotes, userId }: P
         .select('*')
         .order('featured', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(30)
+        .limit(100)
 
       if (status === 'active') {
         query = query.eq('status', 'active')
