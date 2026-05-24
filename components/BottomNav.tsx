@@ -1,7 +1,9 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useTransition, useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import AuthModal from './AuthModal'
 
 const navItems = [
   {
@@ -57,32 +59,56 @@ export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [, startTransition] = useTransition()
+  const [showAuth, setShowAuth] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session?.user)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsLoggedIn(!!session?.user)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  function handleNavClick(href: string) {
+    if (href === '/profile' && !isLoggedIn) {
+      setShowAuth(true)
+      return
+    }
+    startTransition(() => router.push(href))
+  }
 
   return (
-    <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-gray-100 z-50"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-    >
-      <div className="flex items-center justify-around h-[60px]">
-        {navItems.map(({ href, label, icon }) => {
-          const active = pathname === href || (href !== '/' && pathname.startsWith(href))
-          return (
-            <button
-              key={href}
-              onClick={() => startTransition(() => router.push(href))}
-              className="flex flex-col items-center gap-0.5 flex-1 py-2 btn-press"
-            >
-              {icon(active)}
-              <span
-                className="text-[10px] font-medium"
-                style={{ color: active ? '#0038A8' : '#9CA3AF' }}
+    <>
+      <nav
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-gray-100 z-50"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className="flex items-center justify-around h-[60px]">
+          {navItems.map(({ href, label, icon }) => {
+            const active = pathname === href || (href !== '/' && pathname.startsWith(href))
+            return (
+              <button
+                key={href}
+                onClick={() => handleNavClick(href)}
+                className="flex flex-col items-center gap-0.5 flex-1 py-2 btn-press"
               >
-                {label}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </nav>
+                {icon(active)}
+                <span
+                  className="text-[10px] font-medium"
+                  style={{ color: active ? '#0038A8' : '#9CA3AF' }}
+                >
+                  {label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+    </>
   )
 }

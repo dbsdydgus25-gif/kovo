@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CATEGORY_COLORS } from '@/lib/utils'
 
+const CATEGORIES = ['경제', '안보', '복지', '교육', '의료', '정치']
+
 interface Stats {
   totalUsers: number
   totalVotes: number
@@ -19,6 +21,14 @@ interface Stats {
   chartData: { date: string; count: number }[]
 }
 
+interface EditForm {
+  title: string
+  summary: string
+  pro_summary: string
+  con_summary: string
+  category: string
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function AdminDashboard({ stats, issues: initialIssues, comments: initialComments }: { stats: Stats; issues: any[]; comments: any[] }) {
   const router = useRouter()
@@ -28,6 +38,11 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [confirmIssueDelete, setConfirmIssueDelete] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [editingIssue, setEditingIssue] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState<EditForm>({ title: '', summary: '', pro_summary: '', con_summary: '', category: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   // 차트 최대값
   const maxChart = Math.max(...stats.chartData.map(d => d.count), 1)
@@ -85,6 +100,57 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
     }
     setLoadingId(null)
     setConfirmDelete(null)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function openEdit(issue: any) {
+    setEditingIssue(issue)
+    setEditForm({
+      title: issue.title ?? '',
+      summary: issue.summary ?? '',
+      pro_summary: issue.pro_summary ?? '',
+      con_summary: issue.con_summary ?? '',
+      category: issue.category ?? '',
+    })
+  }
+
+  async function saveEdit() {
+    if (!editingIssue) return
+    setEditSaving(true)
+    const res = await fetch('/api/admin/issues', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: editingIssue.id, ...editForm }),
+    })
+    if (res.ok) {
+      setIssues(prev => prev.map(i => i.id === editingIssue.id ? { ...i, ...editForm } : i))
+      setEditingIssue(null)
+    }
+    setEditSaving(false)
+  }
+
+  async function hideIssue(issueId: string, currentStatus: string) {
+    setLoadingId(issueId)
+    const newStatus = currentStatus === 'hidden' ? 'active' : 'hidden'
+    const res = await fetch('/api/admin/issues', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: issueId, status: newStatus }),
+    })
+    if (res.ok) {
+      setIssues(prev => prev.map(i => i.id === issueId ? { ...i, status: newStatus } : i))
+    }
+    setLoadingId(null)
+  }
+
+  async function deleteIssue(issueId: string) {
+    setLoadingId(issueId)
+    const res = await fetch(`/api/admin/issues?id=${issueId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setIssues(prev => prev.filter(i => i.id !== issueId))
+    }
+    setLoadingId(null)
+    setConfirmIssueDelete(null)
   }
 
   const filteredIssues = issues.filter(i =>
@@ -275,13 +341,16 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                 const isLoading = loadingId === issue.id
                 return (
                   <div key={issue.id} className="bg-white rounded-2xl border border-gray-100 p-4">
-                    <div className="flex items-start gap-2 mb-2">
+                    <div className="flex items-start gap-2 mb-2 flex-wrap">
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
                         style={{ background: `${catColor}18`, color: catColor }}>
                         {issue.category}
                       </span>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${isClosed ? 'bg-gray-100 text-gray-400' : 'bg-green-50 text-green-600'}`}>
-                        {isClosed ? '완료' : '진행중'}
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${
+                        issue.status === 'hidden' ? 'bg-gray-100 text-gray-400' :
+                        isClosed ? 'bg-gray-100 text-gray-400' : 'bg-green-50 text-green-600'
+                      }`}>
+                        {issue.status === 'hidden' ? '🙈 숨김' : isClosed ? '완료' : '진행중'}
                       </span>
                       {issue.featured && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 bg-amber-50 text-amber-600">
@@ -303,6 +372,16 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                     </div>
 
                     <div className="flex gap-2 flex-wrap">
+                      {/* 수정 */}
+                      <button
+                        onClick={() => openEdit(issue)}
+                        disabled={isLoading}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-50 text-[#0038A8] disabled:opacity-50 transition-colors"
+                      >
+                        ✏️ 수정
+                      </button>
+
+                      {/* 추천 토글 */}
                       <button
                         onClick={() => toggleFeatured(issue.id, issue.featured)}
                         disabled={isLoading}
@@ -312,16 +391,30 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                           color: issue.featured ? '#D97706' : '#6B7280',
                         }}
                       >
-                        {issue.featured ? '⭐ 추천 해제' : '☆ 추천 설정'}
+                        {issue.featured ? '⭐ 추천 해제' : '☆ 추천'}
                       </button>
 
-                      {!isClosed ? (
+                      {/* 숨기기 토글 */}
+                      <button
+                        onClick={() => hideIssue(issue.id, issue.status)}
+                        disabled={isLoading}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold disabled:opacity-50 transition-colors"
+                        style={{
+                          background: issue.status === 'hidden' ? '#ECFDF5' : '#F3F4F6',
+                          color: issue.status === 'hidden' ? '#059669' : '#6B7280',
+                        }}
+                      >
+                        {issue.status === 'hidden' ? '👁 표시' : '🙈 숨기기'}
+                      </button>
+
+                      {/* 마감/재개설 */}
+                      {issue.status !== 'hidden' && (!isClosed ? (
                         <button
                           onClick={() => closeIssue(issue.id)}
                           disabled={isLoading}
-                          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-red-50 text-[#C60C30] disabled:opacity-50 transition-colors"
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-orange-50 text-orange-600 disabled:opacity-50 transition-colors"
                         >
-                          투표 마감
+                          마감
                         </button>
                       ) : (
                         <button
@@ -331,7 +424,16 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                         >
                           재개설
                         </button>
-                      )}
+                      ))}
+
+                      {/* 삭제 */}
+                      <button
+                        onClick={() => setConfirmIssueDelete(issue.id)}
+                        disabled={isLoading}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-red-50 text-[#C60C30] disabled:opacity-50 transition-colors"
+                      >
+                        🗑 삭제
+                      </button>
                     </div>
                   </div>
                 )
@@ -386,7 +488,7 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
         )}
       </div>
 
-      {/* 삭제 확인 모달 */}
+      {/* 댓글 삭제 확인 모달 */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40"
           onClick={() => setConfirmDelete(null)}>
@@ -402,6 +504,126 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                 disabled={loadingId === confirmDelete}
                 className="flex-1 py-2.5 rounded-xl bg-[#C60C30] text-[13px] font-semibold text-white disabled:opacity-60">
                 {loadingId === confirmDelete ? '삭제 중...' : '삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 논제 삭제 확인 모달 */}
+      {confirmIssueDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40"
+          onClick={() => setConfirmIssueDelete(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-[16px] font-black text-center mb-2">논제 삭제</h3>
+            <p className="text-[13px] text-gray-500 text-center mb-5">이 논제를 완전히 삭제합니다.<br/>관련 투표/댓글도 모두 삭제됩니다.<br/>복구할 수 없습니다.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmIssueDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-[13px] font-semibold text-gray-600">
+                취소
+              </button>
+              <button onClick={() => deleteIssue(confirmIssueDelete)}
+                disabled={loadingId === confirmIssueDelete}
+                className="flex-1 py-2.5 rounded-xl bg-[#C60C30] text-[13px] font-semibold text-white disabled:opacity-60">
+                {loadingId === confirmIssueDelete ? '삭제 중...' : '완전 삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 논제 수정 모달 */}
+      {editingIssue && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+          onClick={() => setEditingIssue(null)}>
+          <div className="bg-white w-full max-w-[480px] rounded-t-3xl p-6 pb-10 max-h-[90dvh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+            <h3 className="text-[17px] font-black text-[#1C1917] mb-4">논제 수정</h3>
+
+            <div className="space-y-4">
+              {/* 제목 */}
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 mb-1 block">제목</label>
+                <input
+                  value={editForm.title}
+                  onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-[14px] outline-none focus:border-[#0038A8]"
+                  placeholder="논제 제목"
+                  maxLength={60}
+                />
+              </div>
+
+              {/* 요약 */}
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 mb-1 block">요약</label>
+                <textarea
+                  value={editForm.summary}
+                  onChange={e => setEditForm(f => ({ ...f, summary: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-[13px] outline-none focus:border-[#0038A8] resize-none"
+                  rows={3}
+                  placeholder="이 법안이 무엇을 바꾸려는지..."
+                />
+              </div>
+
+              {/* 찬성 */}
+              <div>
+                <label className="text-[11px] font-bold text-[#0038A8] mb-1 block">찬성 측 주장</label>
+                <textarea
+                  value={editForm.pro_summary}
+                  onChange={e => setEditForm(f => ({ ...f, pro_summary: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-[13px] outline-none focus:border-[#0038A8] resize-none"
+                  rows={2}
+                  placeholder="찬성 측 핵심 주장..."
+                />
+              </div>
+
+              {/* 반대 */}
+              <div>
+                <label className="text-[11px] font-bold text-[#C60C30] mb-1 block">반대 측 주장</label>
+                <textarea
+                  value={editForm.con_summary}
+                  onChange={e => setEditForm(f => ({ ...f, con_summary: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-[13px] outline-none focus:border-[#0038A8] resize-none"
+                  rows={2}
+                  placeholder="반대 측 핵심 주장..."
+                />
+              </div>
+
+              {/* 카테고리 */}
+              <div>
+                <label className="text-[11px] font-bold text-gray-500 mb-1 block">카테고리</label>
+                <div className="flex gap-2 flex-wrap">
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setEditForm(f => ({ ...f, category: cat }))}
+                      className="px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+                      style={{
+                        background: editForm.category === cat ? (CATEGORY_COLORS[cat] ?? '#0038A8') : '#F3F4F6',
+                        color: editForm.category === cat ? 'white' : '#6B7280',
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditingIssue(null)}
+                className="flex-1 py-3 rounded-2xl bg-gray-100 text-[14px] font-semibold text-gray-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={editSaving}
+                className="flex-1 py-3 rounded-2xl bg-[#0038A8] text-[14px] font-semibold text-white disabled:opacity-60"
+              >
+                {editSaving ? '저장 중...' : '저장'}
               </button>
             </div>
           </div>
