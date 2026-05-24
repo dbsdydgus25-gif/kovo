@@ -44,7 +44,7 @@ export default async function HomePage({ searchParams }: Props) {
         .eq('status', 'active')
         .order('featured', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(10)
 
       if (activeCategory !== '전체') {
         query = query.eq('category', activeCategory)

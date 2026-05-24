@@ -10,6 +10,7 @@ const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('supabase.co') |
   process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder')
 
 const CATEGORIES = ['전체', '경제', '안보', '복지', '교육', '의료', '정치']
+const PAGE_SIZE = 10
 
 type StatusTab = 'active' | 'closed'
 
@@ -44,9 +45,11 @@ export default function IssueList({ initialIssues, initialUserVotes, userId }: P
   const [issues, setIssues] = useState<Issue[]>(initialIssues)
   const [userVotes, setUserVotes] = useState(initialUserVotes)
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(0)
+  const [totalCount, setTotalCount] = useState(initialIssues.length)
   const abortRef = useRef<AbortController | null>(null)
 
-  const fetchIssues = useCallback(async (status: StatusTab, cat: string) => {
+  const fetchIssues = useCallback(async (status: StatusTab, cat: string, pg: number) => {
     abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
@@ -57,7 +60,9 @@ export default function IssueList({ initialIssues, initialUserVotes, userId }: P
       if (ctrl.signal.aborted) return
       let list = MOCK_ISSUES
       if (cat !== '전체') list = list.filter(i => i.category === cat)
-      setIssues(list)
+      const start = pg * PAGE_SIZE
+      setIssues(list.slice(start, start + PAGE_SIZE))
+      setTotalCount(list.length)
       setUserVotes({})
       setLoading(false)
       return
@@ -65,29 +70,30 @@ export default function IssueList({ initialIssues, initialUserVotes, userId }: P
 
     try {
       const supabase = createClient()
-      const now = new Date().toISOString()
 
-      let query = supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let query: any = supabase
         .from('issues')
-        .select('*')
+        .select('*', { count: 'exact' })
         .order('featured', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(100)
 
       if (status === 'active') {
         query = query.eq('status', 'active')
-          .or(`closes_at.is.null,closes_at.gt.${now}`)
       } else {
-        query = query.or(`status.eq.closed,and(closes_at.not.is.null,closes_at.lte.${now})`)
+        query = query.eq('status', 'closed')
       }
 
       if (cat !== '전체') query = query.eq('category', cat)
 
-      const { data: newIssues } = await query
+      query = query.range(pg * PAGE_SIZE, (pg + 1) * PAGE_SIZE - 1)
+
+      const { data: newIssues, count } = await query
       if (ctrl.signal.aborted) return
 
       const list = (newIssues ?? []) as Issue[]
       setIssues(list)
+      setTotalCount(count ?? 0)
 
       if (userId && list.length > 0) {
         const { data: votes } = await supabase
@@ -106,15 +112,33 @@ export default function IssueList({ initialIssues, initialUserVotes, userId }: P
   function handleStatusTab(s: StatusTab) {
     setStatusTab(s)
     setCategory('전체')
-    fetchIssues(s, '전체')
+    setPage(0)
+    fetchIssues(s, '전체', 0)
   }
 
   function handleCategory(cat: string) {
     setCategory(cat)
-    fetchIssues(statusTab, cat)
+    setPage(0)
+    fetchIssues(statusTab, cat, 0)
   }
 
-  useEffect(() => { fetchIssues('active', '전체') }, []) // eslint-disable-line
+  function handlePage(pg: number) {
+    setPage(pg)
+    fetchIssues(statusTab, category, pg)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  useEffect(() => { fetchIssues('active', '전체', 0) }, []) // eslint-disable-line
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+
+  function getPageNumbers(): number[] {
+    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i)
+    let start = Math.max(0, page - 2)
+    const end = Math.min(totalPages - 1, start + 4)
+    start = Math.max(0, end - 4)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   return (
     <>
@@ -165,19 +189,57 @@ export default function IssueList({ initialIssues, initialUserVotes, userId }: P
               {statusTab === 'active' ? '진행중인 논제가 없습니다' : '완료된 논제가 없습니다'}
             </p>
             <p className="text-[13px] text-gray-400 mt-1">
-              {statusTab === 'active' ? '곧 새로운 안건이 등록됩니다' : '투표가 마감되면 여기에 표시됩니다'}
+              {statusTab === 'active' ? '곧 새로운 안건이 등록됩니다' : '국회 심의가 완료되면 여기에 표시됩니다'}
             </p>
           </div>
         ) : (
-          issues.map(issue => (
-            <div key={issue.id} className="fade-in-up">
-              <IssueCard
-                issue={issue}
-                userVote={userVotes[issue.id] ?? null}
-                isClosed={statusTab === 'closed'}
-              />
+          <>
+            <div className="space-y-3">
+              {issues.map(issue => (
+                <div key={issue.id} className="fade-in-up">
+                  <IssueCard
+                    issue={issue}
+                    userVote={userVotes[issue.id] ?? null}
+                    isClosed={statusTab === 'closed'}
+                  />
+                </div>
+              ))}
             </div>
-          ))
+
+            {/* 페이지 네비게이션 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-1.5 py-5">
+                <button
+                  onClick={() => handlePage(page - 1)}
+                  disabled={page === 0}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[18px] leading-none text-gray-400 disabled:opacity-30 active:bg-gray-100 transition-colors"
+                >
+                  ‹
+                </button>
+                {getPageNumbers().map(pg => (
+                  <button
+                    key={pg}
+                    onClick={() => handlePage(pg)}
+                    className="w-8 h-8 rounded-full text-[13px] font-bold transition-all btn-press flex items-center justify-center"
+                    style={{
+                      background: pg === page ? '#0038A8' : 'white',
+                      color: pg === page ? 'white' : '#6B7280',
+                      border: pg === page ? 'none' : '1px solid #E5E7EB',
+                    }}
+                  >
+                    {pg + 1}
+                  </button>
+                ))}
+                <button
+                  onClick={() => handlePage(page + 1)}
+                  disabled={page >= totalPages - 1}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[18px] leading-none text-gray-400 disabled:opacity-30 active:bg-gray-100 transition-colors"
+                >
+                  ›
+                </button>
+              </div>
+            )}
+          </>
         )
       )}
     </>

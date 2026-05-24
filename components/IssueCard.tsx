@@ -10,18 +10,44 @@ interface IssueCardProps {
   isClosed?: boolean
 }
 
+const PASS_RESULTS = ['원안가결', '수정가결', '대안반영가결']
+
+function getProcResult(apiData: Record<string, unknown> | null): string | null {
+  if (!apiData) return null
+  const r = apiData.PROC_RESULT as string | undefined
+  return r && r.trim().length > 0 ? r.trim() : null
+}
+
+function isPass(result: string): boolean {
+  return PASS_RESULTS.some(r => result.includes(r))
+}
+
+function getResultLabel(result: string): string {
+  if (result.includes('원안가결')) return '원안가결'
+  if (result.includes('수정가결')) return '수정가결'
+  if (result.includes('대안반영가결')) return '대안반영'
+  if (result.includes('부결')) return '부결'
+  if (result.includes('폐기')) return '폐기'
+  if (result.includes('철회')) return '철회'
+  return result
+}
+
 export default function IssueCard({ issue, userVote, isClosed }: IssueCardProps) {
   const catColor = CATEGORY_COLORS[issue.category] ?? '#6B7280'
   const hasVoted = !!userVote
   const total = issue.agree_count + issue.disagree_count
   const agreePct = total > 0 ? Math.round((issue.agree_count / total) * 100) : 0
 
+  const procResult = getProcResult(issue.api_data)
+  const actuallyPassed = procResult !== null ? isPass(procResult) : null
+  const kovoPredictedPass = agreePct >= 50
+
   return (
     <Link href={`/issue/${issue.id}`} className="block">
       <article className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm active:scale-[0.99] transition-transform duration-100">
         <div className="px-4 pt-4 pb-4">
           {/* Category + badges */}
-          <div className="flex items-center gap-2 mb-2.5">
+          <div className="flex items-center gap-2 mb-2.5 flex-wrap">
             <span
               className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
               style={{ background: `${catColor}15`, color: catColor }}
@@ -34,9 +60,21 @@ export default function IssueCard({ issue, userVote, isClosed }: IssueCardProps)
               </span>
             )}
             {isClosed && (
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                투표 마감
-              </span>
+              procResult ? (
+                <span
+                  className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{
+                    background: isPass(procResult) ? '#DCFCE7' : '#FEE2E2',
+                    color: isPass(procResult) ? '#16A34A' : '#DC2626',
+                  }}
+                >
+                  {isPass(procResult) ? '✅' : '❌'} {getResultLabel(procResult)}
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                  완료됨
+                </span>
+              )
             )}
           </div>
 
@@ -50,7 +88,7 @@ export default function IssueCard({ issue, userVote, isClosed }: IssueCardProps)
             {issue.summary}
           </p>
 
-          {/* 완료됨: 결과 바 표시 */}
+          {/* 완료됨: 결과 바 + 인사이트 */}
           {isClosed && total > 0 && (
             <div className="mb-3">
               <div className="flex justify-between text-[11px] font-bold mb-1">
@@ -62,6 +100,27 @@ export default function IssueCard({ issue, userVote, isClosed }: IssueCardProps)
                 <div className="h-full bg-[#0038A8] rounded-l-full" style={{ width: `${agreePct}%` }} />
                 <div className="h-full bg-[#C60C30] rounded-r-full" style={{ width: `${100 - agreePct}%` }} />
               </div>
+
+              {/* 코보 민심 vs 실제 결과 비교 */}
+              {actuallyPassed !== null && (
+                <div
+                  className="mt-2.5 px-3 py-2 rounded-xl flex items-center gap-2"
+                  style={{ background: kovoPredictedPass === actuallyPassed ? '#F0FDF4' : '#FFF7ED' }}
+                >
+                  <span className="text-[15px]">{kovoPredictedPass === actuallyPassed ? '🎯' : '⚡'}</span>
+                  <div>
+                    <p
+                      className="text-[11px] font-bold"
+                      style={{ color: kovoPredictedPass === actuallyPassed ? '#16A34A' : '#EA580C' }}
+                    >
+                      {kovoPredictedPass === actuallyPassed ? '코보 민심 예측 적중!' : '민심과 국회 결과 불일치'}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                      코보 {kovoPredictedPass ? '찬성' : '반대'} {agreePct}% → 국회 {getResultLabel(procResult!)}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

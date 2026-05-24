@@ -127,6 +127,12 @@ function computeBillStage(bill: { CURR_COMMITTEE: string | null; PROPOSE_DT: str
   return { idx: 0, date: bill.PROPOSE_DT }
 }
 
+/** 법안이 국회 본회의에서 공포(가결)됐는지 확인 */
+function isPromulgated(bill: Record<string, unknown>): boolean {
+  const result = String(bill.PROC_RESULT ?? bill.PROC_RESULT_CD ?? '').trim()
+  return ['원안가결', '수정가결', '대안반영가결'].some(r => result.includes(r))
+}
+
 async function runSync() {
 
   const supabase = createServerClient(
@@ -154,20 +160,25 @@ async function runSync() {
     for (const bill of bills) {
       const { data: existing } = await supabase
         .from('issues')
-        .select('id')
+        .select('id, status')
         .eq('bill_no', bill.BILL_NO)
         .single()
 
       // 기존 논재: api_data 및 심사단계 업데이트 (제목/요약 등 편집된 내용은 유지)
       if (existing) {
         const stage = computeBillStage(bill)
-        await supabase.from('issues').update({
+        const updateData: Record<string, unknown> = {
           api_data: {
             ...(bill as unknown as Record<string, unknown>),
             bill_stage_idx: stage.idx,
             bill_stage_date: stage.date,
           },
-        }).eq('id', existing.id)
+        }
+        // 공포된 법안은 자동으로 완료됨 처리 (수동 숨기기 상태는 유지)
+        if (isPromulgated(bill as unknown as Record<string, unknown>) && (existing as { status?: string }).status !== 'hidden') {
+          updateData.status = 'closed'
+        }
+        await supabase.from('issues').update(updateData).eq('id', existing.id)
         updated++
         continue
       }
@@ -185,6 +196,7 @@ async function runSync() {
         ?? (bill.PROPOSER_KIND === '정부' ? '정부' : '기타')
 
       const stage = computeBillStage(bill)
+      const newBillPromulgated = isPromulgated(bill as unknown as Record<string, unknown>)
       const issueData = {
         title: processed?.title ?? bill.BILL_NAME.slice(0, 60),
         summary: processed?.summary ?? `${bill.PROPOSER} 발의`,
@@ -195,9 +207,8 @@ async function runSync() {
         proposer: bill.RST_PROPOSER,
         bill_no: bill.BILL_NO,
         source_url: bill.LINK_URL,
-        status: 'active',
+        status: newBillPromulgated ? 'closed' : 'active',
         featured: false,
-        closes_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         api_data: {
           ...(bill as unknown as Record<string, unknown>),
           bill_stage_idx: stage.idx,
