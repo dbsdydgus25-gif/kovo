@@ -57,7 +57,7 @@ export default function HomeBanner({ announcement }: HomeBannerProps) {
           <div className="h-6" />
         </div>
 
-        {/* ── 슬라이드 2: 제 7회 전국동시지방선거 ── */}
+        {/* ── 슬라이드 2: 제 9회 전국동시지방선거 ── */}
         <div
           className="w-full flex-shrink-0"
           style={{ background: 'linear-gradient(135deg, #0a1628 0%, #003087 50%, #0038A8 100%)' }}
@@ -84,7 +84,7 @@ export default function HomeBanner({ announcement }: HomeBannerProps) {
                   <span className="text-[9px] font-bold text-white/70 tracking-widest">전국동시지방선거</span>
                 </div>
                 <h2 className="text-[17px] font-black text-white leading-tight mb-1">
-                  제 7회<br />전국동시지방선거
+                  제 9회<br />전국동시지방선거
                 </h2>
                 <p className="text-[13px] font-bold text-white/90">
                   여러분은 정하셨습니까?

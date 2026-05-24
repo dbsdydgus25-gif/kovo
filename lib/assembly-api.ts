@@ -34,6 +34,8 @@ export interface AssemblyBill {
   CURR_COMMITTEE: string | null  // 소관위원회
   LINK_URL: string
   AGE: string
+  PROC_RESULT: string | null  // 처리결과 (원안가결/수정가결/부결/폐기/철회 등)
+  PROC_DT: string | null      // 처리일
 }
 
 export interface AssemblyApiResponse {
@@ -79,6 +81,8 @@ export async function fetchRecentBills(page = 1, size = 30): Promise<AssemblyApi
       CURR_COMMITTEE: r.CURR_COMMITTEE ?? null,
       LINK_URL: r.LINK_URL ?? '',
       AGE: r.AGE ?? '22',
+      PROC_RESULT: r.PROC_RESULT ?? null,
+      PROC_DT: r.PROC_DT ?? null,
     }))
 
     return { bills: rows, total }

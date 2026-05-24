@@ -6,7 +6,6 @@ import { fetchRecentBills, fetchMemberParty } from '@/lib/assembly-api'
 export const maxDuration = 300
 
 const CATEGORIES = ['경제', '안보', '복지', '교육', '의료', '정치']
-const PARTIES = ['더불어민주당', '국민의힘', '조국혁신당', '개혁신당', '정부', '기타']
 
 const COMMITTEE_CATEGORY_MAP: Record<string, string> = {
   '기획재정': '경제', '산업통상': '경제', '농림': '경제', '국토교통': '경제',
@@ -30,6 +29,12 @@ function inferCategory(committee: string | null, billName: string): string {
   if (/복지|연금|육아|출산|보육/.test(billName)) return '복지'
   if (/세금|경제|금융|투자|무역|기업|산업/.test(billName)) return '경제'
   return '정치'
+}
+
+/** 법안이 국회 본회의에서 공포(가결)됐는지 확인 */
+function isPromulgated(procResult: string | null): boolean {
+  if (!procResult) return false
+  return ['원안가결', '수정가결', '대안반영가결'].some(r => procResult.includes(r))
 }
 
 async function processWithClaude(billName: string, proposer: string, committee: string | null) {
@@ -90,21 +95,49 @@ export async function GET() {
     }
 
     let inserted = 0
+    let updated = 0
     let enriched = 0
-    let skipped = 0
+    let partiesFixed = 0
+    let autoClosed = 0
     const newBillIds: string[] = []
 
-    // 2. 신규 법안만 DB에 삽입 (Claude 없이 빠르게)
     for (const bill of bills) {
       const { data: existing } = await supabase
         .from('issues')
-        .select('id')
+        .select('id, status, party')
         .eq('bill_no', bill.BILL_NO)
         .single()
 
-      if (existing) { skipped++; continue }
+      if (existing) {
+        // ── 기존 법안: api_data 최신화 + 공포 여부 체크 + 정당 재매칭 ──
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updateData: Record<string, any> = {
+          api_data: bill as unknown as Record<string, unknown>,
+        }
 
-      // 실제 당 정보를 의원 정보 API에서 조회
+        // 공포된 법안 자동 완료됨 처리 (수동 hidden 상태는 보존)
+        if (isPromulgated(bill.PROC_RESULT) && existing.status !== 'hidden') {
+          updateData.status = 'closed'
+          autoClosed++
+        }
+
+        // 정당이 '기타'이거나 없으면 재매칭 시도
+        if (!existing.party || existing.party === '기타') {
+          const newParty = bill.PROPOSER_KIND === '정부'
+            ? '정부'
+            : await fetchMemberParty(bill.RST_PROPOSER)
+          if (newParty && newParty !== '기타') {
+            updateData.party = newParty
+            partiesFixed++
+          }
+        }
+
+        await supabase.from('issues').update(updateData).eq('id', existing.id)
+        updated++
+        continue
+      }
+
+      // ── 신규 법안: 의원 정보 API로 정당 조회 후 즉시 삽입 ──
       const actualParty = bill.PROPOSER_KIND === '정부'
         ? '정부'
         : await fetchMemberParty(bill.RST_PROPOSER)
@@ -119,7 +152,7 @@ export async function GET() {
         proposer: bill.RST_PROPOSER,
         bill_no: bill.BILL_NO,
         source_url: bill.LINK_URL,
-        status: 'active',
+        status: isPromulgated(bill.PROC_RESULT) ? 'closed' : 'active',
         featured: false,
         api_data: bill as unknown as Record<string, unknown>,
       }).select('id').single()
@@ -130,19 +163,19 @@ export async function GET() {
       }
     }
 
-    // 3. 신규 법안 Claude로 가공
+    // 2. 신규 법안만 Claude로 가공 (title/summary/pro_con/category)
     for (const id of newBillIds) {
-      const { data: bill } = await supabase
+      const { data: row } = await supabase
         .from('issues')
         .select('title, proposer, api_data')
         .eq('id', id)
         .single()
 
-      if (!bill) continue
+      if (!row) continue
 
-      const apiData = bill.api_data as Record<string, string> | null
-      const billName = apiData?.BILL_NAME ?? bill.title
-      const proposer = bill.proposer ?? ''
+      const apiData = row.api_data as Record<string, string> | null
+      const billName = apiData?.BILL_NAME ?? row.title
+      const proposer = row.proposer ?? ''
       const committee = apiData?.CURR_COMMITTEE ?? null
 
       const processed = await processWithClaude(billName, proposer, committee)
@@ -164,10 +197,12 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       total_api: total,
-      skipped,
+      updated,
       inserted,
       enriched,
-      message: inserted === 0 ? '신규 법안 없음' : `${inserted}개 추가, ${enriched}개 AI 가공 완료`,
+      parties_fixed: partiesFixed,
+      auto_closed: autoClosed,
+      message: `${inserted}개 추가, ${updated}개 업데이트, ${enriched}개 AI 가공, ${partiesFixed}개 정당 수정, ${autoClosed}개 자동 완료됨`,
     })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

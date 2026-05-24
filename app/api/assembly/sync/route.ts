@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { fetchRecentBills } from '@/lib/assembly-api'
+import { fetchRecentBills, fetchMemberParty } from '@/lib/assembly-api'
 
 export const maxDuration = 60
 
@@ -105,19 +105,6 @@ export async function POST(_request: NextRequest) {
   return runSync()
 }
 
-/** Supabase assembly_members에서 의원 정당 조회 */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function lookupParty(supabase: any, proposerName: string): Promise<string | null> {
-  if (!proposerName) return null
-  const { data } = await supabase
-    .from('assembly_members')
-    .select('party')
-    .or(`name.eq.${proposerName},name.ilike.%${proposerName}%`)
-    .limit(1)
-    .maybeSingle()
-  return (data as { party?: string } | null)?.party ?? null
-}
-
 /** 법안 진행 단계 계산 (CURR_COMMITTEE 기반) */
 function computeBillStage(bill: { CURR_COMMITTEE: string | null; PROPOSE_DT: string }): { idx: number; date: string } {
   // 소관위원회가 배정됐으면 최소 '위원회 심사' 단계
@@ -189,10 +176,13 @@ async function runSync() {
         : null
       if (shouldUseClaude) claudeCalls++
 
-      // 정당: DB 우선 → Claude 결과 → 정부여부 → 기타
-      const dbParty = await lookupParty(supabase, bill.RST_PROPOSER)
-      const finalParty = dbParty
-        ?? (processed?.party && processed.party !== '기타' ? processed.party : null)
+      // 정당: 의원 정보 API 직접 조회 (정확도 최우선) → Claude 결과 → 정부여부 → 기타
+      const apiParty = bill.PROPOSER_KIND === '정부'
+        ? '정부'
+        : await fetchMemberParty(bill.RST_PROPOSER)
+      const finalParty = (apiParty && apiParty !== '기타')
+        ? apiParty
+        : (processed?.party && processed.party !== '기타' ? processed.party : null)
         ?? (bill.PROPOSER_KIND === '정부' ? '정부' : '기타')
 
       const stage = computeBillStage(bill)
