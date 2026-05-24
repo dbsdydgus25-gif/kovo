@@ -3,6 +3,7 @@ import TopBar from '@/components/TopBar'
 import BottomNav from '@/components/BottomNav'
 import LoginButton from '@/components/LoginButton'
 import NotificationBell from '@/components/NotificationBell'
+import SearchButton from '@/components/SearchButton'
 import IssueList from '@/components/IssueList'
 import Link from 'next/link'
 import { Issue } from '@/types'
@@ -77,13 +78,19 @@ export default async function HomePage({ searchParams }: Props) {
     <div className="min-h-dvh bg-[#F5F5F7]">
       <TopBar
         showLogo
-        leftAction={user ? <NotificationBell userId={user.id} /> : undefined}
+        leftAction={<SearchButton />}
         rightAction={user ? (
-          <Link href="/profile">
-            <div className="w-8 h-8 rounded-full bg-[#0038A8] flex items-center justify-center">
-              <span className="text-white text-xs font-bold">나</span>
-            </div>
-          </Link>
+          <div className="flex items-center gap-1">
+            <NotificationBell userId={user.id} />
+            <Link href="/profile">
+              <div className="w-8 h-8 rounded-full bg-[#0038A8] flex items-center justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="4" fill="white"/>
+                  <path d="M4 20C4 17 7.6 14 12 14C16.4 14 20 17 20 20" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </div>
+            </Link>
+          </div>
         ) : (
           <LoginButton />
         )}
