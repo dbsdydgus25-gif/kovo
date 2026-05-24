@@ -51,7 +51,7 @@ export default async function InsightsPage() {
         { count: totalV },
         { count: totalC },
       ] = await Promise.all([
-        supabase.from('issues').select('*').order('agree_count', { ascending: false }).limit(20),
+        supabase.from('issues').select('*').order('agree_count', { ascending: false }).limit(5),
         supabase.from('votes').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
         supabase.from('votes').select('*', { count: 'exact', head: true }).gte('created_at', weekStart),
         supabase.from('comments').select('*', { count: 'exact', head: true }).gte('created_at', todayStart).eq('is_deleted', false),
@@ -196,11 +196,11 @@ export default async function InsightsPage() {
               </div>
             </div>
 
-            {/* Hot issues ranking */}
+            {/* Hot issues ranking - Top 5 */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="px-4 pt-4 pb-3 border-b border-gray-50">
-                <h3 className="text-[15px] font-bold text-[#1C1917]">🔥 뜨거운 논제</h3>
-                <p className="text-[12px] text-[#78716C] mt-0.5">찬반이 가장 치열한 안건</p>
+                <h3 className="text-[15px] font-bold text-[#1C1917]">🔥 오늘의 논제 TOP 5</h3>
+                <p className="text-[12px] text-[#78716C] mt-0.5">투표 참여가 가장 많은 안건</p>
               </div>
 
               {typedIssues.map((issue, idx) => {
