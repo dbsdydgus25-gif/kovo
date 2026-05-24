@@ -31,10 +31,6 @@ export async function PUT(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const supabase = getSupabase()
-  // closes_at 처리: 재개설 시 새로운 7일 세팅
-  if (updates.status === 'active' && updates.closes_at === undefined) {
-    updates.closes_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-  }
   const { error } = await supabase.from('issues').update(updates).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

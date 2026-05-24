@@ -60,7 +60,10 @@ export async function PUT(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
   const service = getServiceSupabase()
-  await service.rpc('increment_post_likes', { post_id: id })
+  const { data: current } = await service
+    .from('posts').select('likes').eq('id', id).single()
+  await service
+    .from('posts').update({ likes: (current?.likes ?? 0) + 1 }).eq('id', id)
 
   return NextResponse.json({ ok: true })
 }

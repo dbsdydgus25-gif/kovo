@@ -259,3 +259,54 @@ create table if not exists public.announcements (
 alter table public.announcements enable row level security;
 
 create policy "announcements_select_all" on public.announcements for select using (true);
+
+-- ========================================
+-- POSTS (커뮤니티 게시판)
+-- ========================================
+create table if not exists public.posts (
+  id            uuid default gen_random_uuid() primary key,
+  user_id       uuid references public.profiles on delete cascade not null,
+  title         text not null,
+  content       text not null,
+  likes         integer not null default 0,
+  comment_count integer not null default 0,
+  is_deleted    boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists posts_created_at_idx on public.posts(created_at desc);
+create index if not exists posts_user_id_idx on public.posts(user_id);
+
+alter table public.posts enable row level security;
+
+create policy "posts_select" on public.posts for select using (not is_deleted);
+create policy "posts_insert" on public.posts for insert with check (auth.uid() = user_id);
+create policy "posts_update_own" on public.posts for update using (auth.uid() = user_id);
+
+-- ========================================
+-- ASSEMBLY_MEMBERS (국회의원 정보 — 매일 20:00 KST 크론 업데이트)
+-- ========================================
+create table if not exists public.assembly_members (
+  naas_cd       text primary key,
+  name          text not null,
+  eng_name      text,
+  birth_date    text,
+  party         text,
+  constituency  text,
+  election_type text,
+  committee     text,
+  committees    text,
+  sex           text,
+  bio           text,
+  photo_url     text,
+  sessions      text,
+  synced_at     timestamptz,
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists assembly_members_name_idx on public.assembly_members(name);
+
+alter table public.assembly_members enable row level security;
+
+create policy "assembly_members_select_all" on public.assembly_members for select using (true);
+create policy "assembly_members_upsert_service" on public.assembly_members for all using (true) with check (true);
