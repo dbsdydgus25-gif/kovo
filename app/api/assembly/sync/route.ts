@@ -118,6 +118,15 @@ async function lookupParty(supabase: any, proposerName: string): Promise<string 
   return (data as { party?: string } | null)?.party ?? null
 }
 
+/** 법안 진행 단계 계산 (CURR_COMMITTEE 기반) */
+function computeBillStage(bill: { CURR_COMMITTEE: string | null; PROPOSE_DT: string }): { idx: number; date: string } {
+  // 소관위원회가 배정됐으면 최소 '위원회 심사' 단계
+  if (bill.CURR_COMMITTEE) {
+    return { idx: 1, date: bill.PROPOSE_DT }
+  }
+  return { idx: 0, date: bill.PROPOSE_DT }
+}
+
 async function runSync() {
 
   const supabase = createServerClient(
@@ -137,6 +146,7 @@ async function runSync() {
     }
 
     let inserted = 0
+    let updated = 0
     let skipped = 0
     let claudeCalls = 0
     const MAX_CLAUDE_PER_RUN = 5
@@ -148,7 +158,19 @@ async function runSync() {
         .eq('bill_no', bill.BILL_NO)
         .single()
 
-      if (existing) { skipped++; continue }
+      // 기존 논재: api_data 및 심사단계 업데이트 (제목/요약 등 편집된 내용은 유지)
+      if (existing) {
+        const stage = computeBillStage(bill)
+        await supabase.from('issues').update({
+          api_data: {
+            ...(bill as unknown as Record<string, unknown>),
+            bill_stage_idx: stage.idx,
+            bill_stage_date: stage.date,
+          },
+        }).eq('id', existing.id)
+        updated++
+        continue
+      }
 
       const shouldUseClaude = claudeCalls < MAX_CLAUDE_PER_RUN
       const processed = shouldUseClaude
@@ -162,6 +184,7 @@ async function runSync() {
         ?? (processed?.party && processed.party !== '기타' ? processed.party : null)
         ?? (bill.PROPOSER_KIND === '정부' ? '정부' : '기타')
 
+      const stage = computeBillStage(bill)
       const issueData = {
         title: processed?.title ?? bill.BILL_NAME.slice(0, 60),
         summary: processed?.summary ?? `${bill.PROPOSER} 발의`,
@@ -175,7 +198,11 @@ async function runSync() {
         status: 'active',
         featured: false,
         closes_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        api_data: bill as unknown as Record<string, unknown>,
+        api_data: {
+          ...(bill as unknown as Record<string, unknown>),
+          bill_stage_idx: stage.idx,
+          bill_stage_date: stage.date,
+        },
       }
 
       const { error } = await supabase.from('issues').insert(issueData)
@@ -185,7 +212,7 @@ async function runSync() {
       if (processed) await new Promise(r => setTimeout(r, 200))
     }
 
-    return NextResponse.json({ success: true, inserted, skipped, total })
+    return NextResponse.json({ success: true, inserted, updated, skipped, total })
   } catch (err) {
     console.error('Assembly sync error:', err)
     return NextResponse.json({ error: 'Sync failed', detail: String(err) }, { status: 500 })
