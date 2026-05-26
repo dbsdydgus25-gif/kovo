@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,31 +11,49 @@ export async function GET() {
   const assemblyKey = process.env.ASSEMBLY_API_KEY
 
   const info: Record<string, unknown> = {
-    anthropic_key: apiKey ? `설정됨 (${apiKey.slice(0, 12)}...)` : '❌ 없음',
-    supabase_url: supabaseUrl ? `설정됨 (${supabaseUrl.slice(0, 30)}...)` : '❌ 없음',
-    service_key: serviceKey ? `설정됨 (${serviceKey.slice(0, 12)}...)` : '❌ 없음',
-    assembly_key: assemblyKey ? `설정됨 (${assemblyKey.slice(0, 8)}...)` : '❌ 없음',
+    anthropic_key: apiKey ? `✅ 설정됨` : '❌ 없음',
+    supabase_url:  supabaseUrl ? `✅ 설정됨` : '❌ 없음',
+    service_key:   serviceKey ? `✅ 설정됨` : '❌ 없음',
+    assembly_key:  assemblyKey ? `✅ 설정됨` : '❌ 없음',
   }
 
-  // 의원 정보 API 테스트 (김예지 = 국민의힘)
+  // DB 논재 현황
+  if (supabaseUrl && serviceKey) {
+    try {
+      const sb = createClient(supabaseUrl, serviceKey)
+      const [active, closed, total, members] = await Promise.all([
+        sb.from('issues').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        sb.from('issues').select('*', { count: 'exact', head: true }).eq('status', 'closed'),
+        sb.from('issues').select('*', { count: 'exact', head: true }),
+        sb.from('assembly_members').select('*', { count: 'exact', head: true }),
+      ])
+      info.db_issues = {
+        total:   total.count ?? 0,
+        active:  active.count ?? 0,
+        closed:  closed.count ?? 0,
+        members: members.count ?? 0,
+      }
+    } catch (err) {
+      info.db_error = String(err)
+    }
+  }
+
+  // 국회 법안 API 테스트 (ALLNAMEMBER — 의원 1명만)
   if (assemblyKey) {
     try {
       const params = new URLSearchParams({
-        KEY: assemblyKey,
-        Type: 'json',
-        pIndex: '1',
-        pSize: '3',
-        HG_NM: '김예지',
+        KEY: assemblyKey, Type: 'json', pIndex: '1', pSize: '1',
       })
       const res = await fetch(
-        `https://open.assembly.go.kr/portal/openapi/nprlapfmkoflxwwj?${params}`,
+        `https://open.assembly.go.kr/portal/openapi/ALLNAMEMBER?${params}`,
         { signal: AbortSignal.timeout(5000) }
       )
       const raw = await res.json()
-      info.member_api_raw = raw
-      info.member_api_row = raw?.nprlapfmkoflxwwj?.[1]?.row?.[0] ?? '없음'
+      const code = raw?.ALLNAMEMBER?.[0]?.head?.[1]?.RESULT?.CODE
+      const total = raw?.ALLNAMEMBER?.[0]?.head?.[0]?.list_total_count
+      info.member_api = code === 'INFO-000' ? `✅ 정상 (의원 ${total}명)` : `❌ ${code}`
     } catch (err) {
-      info.member_api_error = String(err)
+      info.member_api = `❌ 타임아웃 or 오류: ${String(err)}`
     }
   }
 
@@ -44,8 +63,8 @@ export async function GET() {
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 50,
-      messages: [{ role: 'user', content: '안녕 (respond with just "ok")' }],
+      max_tokens: 10,
+      messages: [{ role: 'user', content: 'respond with just "ok"' }],
     })
     const text = response.content[0].type === 'text' ? response.content[0].text : '?'
     return NextResponse.json({ ...info, claude_test: `✅ 성공: "${text}"` })
