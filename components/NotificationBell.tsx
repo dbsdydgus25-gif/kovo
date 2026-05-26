@@ -104,37 +104,38 @@ export default function NotificationBell({ userId }: { userId: string }) {
         )}
       </button>
 
-      {/* 알림 시트 */}
+      {/* 알림 드롭다운 */}
       {open && (
         <div
-          className="fixed inset-0 z-[200] flex items-end justify-center"
+          className="fixed inset-0 z-[200]"
           onClick={() => setOpen(false)}
         >
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/20" />
           <div
-            className="relative w-full max-w-[480px] bg-white rounded-t-3xl max-h-[75dvh] flex flex-col fade-in-up"
+            className="absolute right-2 top-[60px] bg-white rounded-2xl shadow-xl border border-gray-100 max-h-[70dvh] flex flex-col fade-in-down"
+            style={{ width: 'min(340px, calc(100vw - 16px))' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}
-            <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-50 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-3 border-b border-gray-100 flex-shrink-0">
               <div>
-                <h3 className="text-[17px] font-black text-[#1C1917]">알림</h3>
+                <h3 className="text-[15px] font-black text-[#1C1917]">알림</h3>
                 <p className="text-[11px] text-gray-400 mt-0.5">
                   {unread > 0 ? `읽지 않은 알림 ${unread}개` : '모두 읽었어요'}
                 </p>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 btn-press"
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-100 btn-press"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
                   <path d="M18 6L6 18M6 6L18 18" stroke="#374151" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
               </button>
             </div>
 
             {/* 알림 목록 */}
-            <div className="overflow-y-auto flex-1 pb-8">
+            <div className="overflow-y-auto flex-1 pb-3">
               {notifications.length === 0 ? (
                 <div className="py-16 text-center">
                   <div className="text-[42px] mb-3">🔔</div>

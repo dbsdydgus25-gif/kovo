@@ -46,6 +46,12 @@ body {
 }
 .fade-in-up { animation: fadeInUp 0.3s ease forwards; }
 
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in-down { animation: fadeInDown 0.2s ease forwards; }
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

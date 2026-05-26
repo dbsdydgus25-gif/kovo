@@ -51,7 +51,7 @@ export default async function InsightsPage() {
         { count: totalV },
         { count: totalC },
       ] = await Promise.all([
-        supabase.from('issues').select('*').order('agree_count', { ascending: false }).limit(5),
+        supabase.from('issues').select('*').order('agree_count', { ascending: false }).limit(100),
         supabase.from('votes').select('*', { count: 'exact', head: true }).gte('created_at', todayStart),
         supabase.from('votes').select('*', { count: 'exact', head: true }).gte('created_at', weekStart),
         supabase.from('comments').select('*', { count: 'exact', head: true }).gte('created_at', todayStart).eq('is_deleted', false),
@@ -60,7 +60,9 @@ export default async function InsightsPage() {
         supabase.from('comments').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
       ])
 
-      typedIssues = (issues ?? []) as Issue[]
+      typedIssues = ((issues ?? []) as Issue[])
+        .sort((a, b) => (b.agree_count + b.disagree_count) - (a.agree_count + a.disagree_count))
+        .slice(0, 5)
       todayVotes = tv ?? 0
       weekVotes = wv ?? 0
       todayComments = tc ?? 0
