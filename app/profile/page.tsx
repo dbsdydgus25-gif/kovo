@@ -80,8 +80,13 @@ export default async function ProfilePage() {
           votes={votes}
           myComments={myComments}
           displayName={profile?.display_name ?? null}
+          ageGroup={profile?.age_group ?? null}
+          gender={profile?.gender ?? null}
+          region={profile?.region ?? null}
+          occupation={profile?.occupation ?? null}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           savedTendency={(profile as any)?.tendency_data ?? null}
+          tendencyUpdatedAt={profile?.tendency_updated_at ?? null}
         />
       </div>
       <BottomNav />

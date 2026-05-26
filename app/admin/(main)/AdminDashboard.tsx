@@ -30,15 +30,18 @@ interface EditForm {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default function AdminDashboard({ stats, issues: initialIssues, comments: initialComments }: { stats: Stats; issues: any[]; comments: any[] }) {
+export default function AdminDashboard({ stats, issues: initialIssues, comments: initialComments, users: initialUsers }: { stats: Stats; issues: any[]; comments: any[]; users: any[] }) {
   const router = useRouter()
-  const [tab, setTab] = useState<'stats' | 'issues' | 'comments'>('stats')
+  const [tab, setTab] = useState<'stats' | 'issues' | 'comments' | 'users'>('stats')
   const [issues, setIssues] = useState(initialIssues)
   const [comments, setComments] = useState(initialComments)
+  const [users, setUsers] = useState(initialUsers)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [userSearch, setUserSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [confirmIssueDelete, setConfirmIssueDelete] = useState<string | null>(null)
+  const [confirmUserDelete, setConfirmUserDelete] = useState<string | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingIssue, setEditingIssue] = useState<any | null>(null)
   const [editForm, setEditForm] = useState<EditForm>({ title: '', summary: '', pro_summary: '', con_summary: '', category: '' })
@@ -153,8 +156,24 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
     setConfirmIssueDelete(null)
   }
 
+  async function deleteUser(userId: string) {
+    setLoadingId(userId)
+    const res = await fetch(`/api/admin/users?id=${userId}`, { method: 'DELETE' })
+    if (res.ok) {
+      setUsers(prev => prev.filter(u => u.id !== userId))
+    }
+    setLoadingId(null)
+    setConfirmUserDelete(null)
+  }
+
   const filteredIssues = issues.filter(i =>
     !search || i.title?.toLowerCase().includes(search.toLowerCase()) || i.category?.includes(search)
+  )
+
+  const filteredUsers = users.filter(u =>
+    !userSearch ||
+    u.email?.toLowerCase().includes(userSearch.toLowerCase()) ||
+    u.display_name?.toLowerCase().includes(userSearch.toLowerCase())
   )
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
@@ -194,11 +213,12 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
       </div>
 
       {/* 탭 */}
-      <div className="px-4 flex gap-2 mb-3">
+      <div className="px-4 flex gap-2 mb-3 overflow-x-auto pb-1">
         {[
           { key: 'stats', label: '📊 통계' },
           { key: 'issues', label: '📋 논제 관리' },
           { key: 'comments', label: '💬 댓글 관리' },
+          { key: 'users', label: '👤 회원 관리' },
         ].map(t => (
           <button
             key={t.key}
@@ -442,6 +462,76 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
           </div>
         )}
 
+        {/* ── 회원 관리 탭 ── */}
+        {tab === 'users' && (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              placeholder="이메일 또는 닉네임 검색..."
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-[13px] outline-none focus:border-[#0038A8] bg-white"
+            />
+            <div className="text-[12px] text-gray-400">{filteredUsers.length}명 회원</div>
+
+            <div className="space-y-2">
+              {filteredUsers.map(user => {
+                const isLoading = loadingId === user.id
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const tendency = user.tendency_data as any
+                const spectrumColor =
+                  tendency?.spectrum === '진보' || tendency?.spectrum === '중도진보' ? '#0038A8' :
+                  tendency?.spectrum === '보수' || tendency?.spectrum === '중도보수' ? '#C60C30' : '#6B7280'
+                return (
+                  <div key={user.id} className="bg-white rounded-2xl border border-gray-100 p-4">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-[#1C1917] truncate">{user.email}</p>
+                        {user.display_name && (
+                          <p className="text-[11px] text-gray-400 mt-0.5">{user.display_name}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setConfirmUserDelete(user.id)}
+                        disabled={isLoading}
+                        className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0 disabled:opacity-50 hover:bg-red-100 transition-colors"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6L18 20H6L5 6" stroke="#C60C30" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {user.age_group && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">{user.age_group}</span>
+                      )}
+                      {user.gender && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">{user.gender}</span>
+                      )}
+                      {user.region && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-[#0038A8] font-medium">{user.region}</span>
+                      )}
+                      {tendency?.spectrum && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                          style={{ background: `${spectrumColor}15`, color: spectrumColor }}>
+                          {tendency.spectrum}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                      <span>투표 {user.vote_count}회</span>
+                      <span>가입 {new Date(user.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                      {tendency && <span className="text-green-600 font-medium">성향분석완료</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ── 댓글 관리 탭 ── */}
         {tab === 'comments' && (
           <div className="space-y-2">
@@ -526,6 +616,30 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                 disabled={loadingId === confirmIssueDelete}
                 className="flex-1 py-2.5 rounded-xl bg-[#C60C30] text-[13px] font-semibold text-white disabled:opacity-60">
                 {loadingId === confirmIssueDelete ? '삭제 중...' : '완전 삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 회원 삭제 확인 모달 */}
+      {confirmUserDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40"
+          onClick={() => setConfirmUserDelete(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-[16px] font-black text-center mb-2">회원 삭제</h3>
+            <p className="text-[13px] text-gray-500 text-center mb-5">
+              이 회원 계정을 삭제합니다.<br/>투표, 댓글, 프로필이 모두 삭제됩니다.<br/>복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmUserDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-[13px] font-semibold text-gray-600">
+                취소
+              </button>
+              <button onClick={() => deleteUser(confirmUserDelete)}
+                disabled={loadingId === confirmUserDelete}
+                className="flex-1 py-2.5 rounded-xl bg-[#C60C30] text-[13px] font-semibold text-white disabled:opacity-60">
+                {loadingId === confirmUserDelete ? '삭제 중...' : '삭제'}
               </button>
             </div>
           </div>

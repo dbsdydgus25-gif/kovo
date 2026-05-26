@@ -82,15 +82,6 @@ export default function VoteSection({ issue, userVote: initialVote, userId, isCl
         vote_type: voteType,
       })
 
-      // 10표마다 성향 자동 재분석 (fire-and-forget)
-      const { count } = await supabase
-        .from('votes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-      if (count && count >= 10 && count % 10 === 0) {
-        fetch('/api/tendency', { method: 'POST' }).catch(() => {})
-      }
-
       router.refresh()
     } catch {
       setUserVote(null)

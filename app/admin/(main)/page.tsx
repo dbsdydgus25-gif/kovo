@@ -27,6 +27,8 @@ export default async function AdminPage() {
     { data: issues },
     { data: comments },
     { data: recentVoteTs },
+    { data: profiles },
+    { data: allVoteUsers },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('votes').select('*', { count: 'exact', head: true }),
@@ -44,6 +46,8 @@ export default async function AdminPage() {
       .order('created_at', { ascending: false })
       .limit(200),
     supabase.from('votes').select('created_at').gte('created_at', last30Start),
+    supabase.from('profiles').select('id, display_name, age_group, gender, region, occupation, tendency_data, tendency_updated_at').order('id'),
+    supabase.from('votes').select('user_id'),
   ])
 
   // 최근 30일 일별 투표 집계
@@ -72,6 +76,24 @@ export default async function AdminPage() {
     chartData,
   }
 
+  const voteCountMap: Record<string, number> = {}
+  for (const v of allVoteUsers ?? []) {
+    const uid = (v as { user_id: string }).user_id
+    voteCountMap[uid] = (voteCountMap[uid] ?? 0) + 1
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]))
+
+  const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const users = (authData?.users ?? []).map((u: any) => ({
+    id: u.id,
+    email: u.email ?? '',
+    created_at: u.created_at,
+    ...(profileMap.get(u.id) ?? {}),
+    vote_count: voteCountMap[u.id] ?? 0,
+  }))
+
   return (
     <AdminDashboard
       stats={stats}
@@ -79,6 +101,8 @@ export default async function AdminPage() {
       issues={(issues ?? []) as any[]}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       comments={(comments ?? []) as any[]}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      users={users as any[]}
     />
   )
 }

@@ -36,7 +36,7 @@ export default function TopBar({ title, showBack, showLogo = false, leftAction, 
           {showLogo ? (
             <Link href="/" className="flex items-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/kovo-logo.png" alt="Kovo" className="h-7 w-auto" />
+              <img src="/kovo-logo.png" alt="Kovo" className="h-8 w-32 object-cover object-center" />
             </Link>
           ) : (
             <h1 className="text-[17px] font-bold text-[#1C1917] truncate max-w-[220px]">{title}</h1>
