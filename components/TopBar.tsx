@@ -34,18 +34,9 @@ export default function TopBar({ title, showBack, showLogo = false, leftAction, 
 
         <div className="flex-1 flex justify-center">
           {showLogo ? (
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <div className="relative">
-                  <div className="w-6 h-6 rounded-md bg-[#0038A8] flex items-center justify-center">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="white" />
-                    </svg>
-                  </div>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#C60C30] border-2 border-white" />
-                </div>
-                <span className="text-[19px] font-black text-[#1C1917] tracking-tight">Kovo</span>
-              </div>
+            <Link href="/" className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/kovo-logo.png" alt="Kovo" className="h-7 w-auto" />
             </Link>
           ) : (
             <h1 className="text-[17px] font-bold text-[#1C1917] truncate max-w-[220px]">{title}</h1>

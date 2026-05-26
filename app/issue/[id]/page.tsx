@@ -172,44 +172,49 @@ export default async function IssuePage({ params, searchParams }: Props) {
           issue={typedIssue}
           userVote={userVote}
           userId={user?.id ?? null}
+          isClosed={typedIssue.status === 'closed'}
         />
 
-        {/* 인사이트 — 투표 전엔 블러 오버레이 */}
-        <div className="relative">
-          {/* 차트는 항상 렌더 (투표 전엔 블러) */}
-          <div
-            className={!userVote ? 'pointer-events-none select-none' : ''}
-            style={!userVote ? { filter: 'blur(5px)', opacity: 0.7 } : {}}
-          >
-            <InsightsChart
-              byAge={buildInsights(votes, AGE_GROUPS, 'age_group')}
-              byGender={buildInsights(votes, GENDERS, 'gender')}
-              byRegion={buildInsights(votes, REGIONS, 'region')}
-              byOccupation={buildInsights(votes, OCCUPATIONS, 'occupation')}
-            />
-          </div>
-
-          {/* 잠금 오버레이 (투표 전만) */}
-          {!userVote && (
-            <div className="absolute inset-0 rounded-2xl flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(2px)' }}>
-              <div className="text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center mx-auto mb-3">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="11" width="18" height="11" rx="2" stroke="#0038A8" strokeWidth="2"/>
-                    <path d="M7 11V7a5 5 0 0110 0v4" stroke="#0038A8" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
-                </div>
-                <p className="text-[17px] font-black text-[#1C1917]">
-                  {user ? '투표하고 확인해보세요' : '로그인 후 투표하면 확인할 수 있어요'}
-                </p>
-                <p className="text-[12px] text-gray-500 mt-1.5 leading-relaxed">
-                  연령·성별·지역·직업별 분포와<br/>발의 정당 정보가 공개됩니다
-                </p>
+        {/* 인사이트 — 완료됨이거나 투표한 경우 바로 공개 */}
+        {(() => {
+          const canSeeInsights = !!userVote || typedIssue.status === 'closed'
+          return (
+            <div className="relative">
+              <div
+                className={!canSeeInsights ? 'pointer-events-none select-none' : ''}
+                style={!canSeeInsights ? { filter: 'blur(5px)', opacity: 0.7 } : {}}
+              >
+                <InsightsChart
+                  byAge={buildInsights(votes, AGE_GROUPS, 'age_group')}
+                  byGender={buildInsights(votes, GENDERS, 'gender')}
+                  byRegion={buildInsights(votes, REGIONS, 'region')}
+                  byOccupation={buildInsights(votes, OCCUPATIONS, 'occupation')}
+                />
               </div>
+
+              {/* 잠금 오버레이 (진행중 + 미투표 시만) */}
+              {!canSeeInsights && (
+                <div className="absolute inset-0 rounded-2xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(2px)' }}>
+                  <div className="text-center px-6">
+                    <div className="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center mx-auto mb-3">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="11" width="18" height="11" rx="2" stroke="#0038A8" strokeWidth="2"/>
+                        <path d="M7 11V7a5 5 0 0110 0v4" stroke="#0038A8" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <p className="text-[17px] font-black text-[#1C1917]">
+                      {user ? '투표하고 확인해보세요' : '로그인 후 투표하면 확인할 수 있어요'}
+                    </p>
+                    <p className="text-[12px] text-gray-500 mt-1.5 leading-relaxed">
+                      연령·성별·지역·직업별 분포와<br/>발의 정당 정보가 공개됩니다
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          )
+        })()}
 
         {/* Comments */}
         <CommentSection
