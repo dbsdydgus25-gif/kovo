@@ -34,12 +34,19 @@ const navItems = [
     ),
   },
   {
-    href: '/community',
-    label: '커뮤니티',
+    href: '/news',
+    label: '뉴스',
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z"
-          fill={active ? '#0038A8' : 'none'} stroke={active ? '#0038A8' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <rect x="3" y="4" width="18" height="16" rx="2"
+          fill={active ? '#0038A8' : 'none'}
+          stroke={active ? '#0038A8' : '#9CA3AF'} strokeWidth="2"/>
+        <line x1="7" y1="9" x2="17" y2="9"
+          stroke={active ? 'white' : '#9CA3AF'} strokeWidth="1.8" strokeLinecap="round"/>
+        <line x1="7" y1="12.5" x2="17" y2="12.5"
+          stroke={active ? 'white' : '#9CA3AF'} strokeWidth="1.8" strokeLinecap="round"/>
+        <line x1="7" y1="16" x2="13" y2="16"
+          stroke={active ? 'white' : '#9CA3AF'} strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     ),
   },
