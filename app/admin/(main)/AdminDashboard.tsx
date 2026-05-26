@@ -56,6 +56,23 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
     router.refresh()
   }
 
+  async function reenrichIssue(issueId: string) {
+    setLoadingId(issueId)
+    const res = await fetch('/api/admin/reenrich', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: issueId }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const updated = data.results?.[0]
+      if (updated?.ok) {
+        setIssues(prev => prev.map(i => i.id === issueId ? { ...i, title: updated.title } : i))
+      }
+    }
+    setLoadingId(null)
+  }
+
   async function toggleFeatured(issueId: string, current: boolean) {
     setLoadingId(issueId)
     const res = await fetch('/api/admin/issues', {
@@ -399,6 +416,16 @@ export default function AdminDashboard({ stats, issues: initialIssues, comments:
                         className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-blue-50 text-[#0038A8] disabled:opacity-50 transition-colors"
                       >
                         ✏️ 수정
+                      </button>
+
+                      {/* AI 재가공 */}
+                      <button
+                        onClick={() => reenrichIssue(issue.id)}
+                        disabled={isLoading}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-purple-50 text-purple-600 disabled:opacity-50 transition-colors"
+                        title="실제 제안이유 기반으로 제목/요약/찬반 재생성"
+                      >
+                        {isLoading ? '처리중...' : '🤖 재가공'}
                       </button>
 
                       {/* 추천 토글 */}

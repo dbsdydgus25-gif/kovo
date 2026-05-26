@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { fetchRecentBills, fetchMemberParty } from '@/lib/assembly-api'
+import { fetchRecentBills, fetchMemberParty, fetchBillDetail } from '@/lib/assembly-api'
 
 export const maxDuration = 300
 
@@ -45,22 +45,42 @@ function computeBillStage(bill: { CURR_COMMITTEE: string | null; PROPOSE_DT: str
   return { idx: 0, date: bill.PROPOSE_DT }
 }
 
-async function processWithClaude(billName: string, proposer: string, committee: string | null) {
+async function processWithClaude(
+  billName: string,
+  proposer: string,
+  committee: string | null,
+  proposeReason: string | null,
+  mainContent: string | null,
+) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return null
 
   const client = new Anthropic({ apiKey })
-  const prompt = `22대 국회 계류 법안을 분석해서 반드시 아래 JSON 형식으로만 응답해. 다른 텍스트 없이 JSON만.
+
+  // 실제 제안 텍스트 — 너무 길면 앞 1500자만 사용
+  const rawText = [proposeReason, mainContent].filter(Boolean).join('\n\n').slice(0, 1500)
+  const hasText = rawText.trim().length > 50
+
+  const contentBlock = hasText
+    ? `\n\n실제 제안이유 및 주요내용 (국회 원문):\n"""\n${rawText}\n"""\n`
+    : ''
+
+  const instruction = hasText
+    ? `위 실제 원문을 바탕으로 분석해. 원문에 없는 내용은 추가하지 마. 찬성 논거는 제안이유에 나온 필요성/기대효과에서, 반대 논거는 원문 내용을 토대로 현실적으로 제기될 수 있는 비용·부작용·형평성 문제를 써.`
+    : `법안명만 있으므로 일반적인 논점으로 쓰되, 불확실한 내용은 최소화해.`
+
+  const prompt = `22대 국회 법안을 시민들이 이해하기 쉽게 가공해. 반드시 JSON만 응답해.
 
 법안명: ${billName}
 대표발의자: ${proposer}
-소관위원회: ${committee ?? '미배정'}
+소관위원회: ${committee ?? '미배정'}${contentBlock}
+${instruction}
 
 {
-  "title": "고등학생도 이해하는 제목 (20자 이내, '~법 개정안' 같은 표현 금지)",
-  "summary": "이 법안이 무엇을 바꾸려는지 2문장 (숫자/구체적 변화 포함)",
-  "pro_summary": "찬성 측 핵심 주장 1~2문장",
-  "con_summary": "반대 측 핵심 주장 1~2문장",
+  "title": "핵심 한 줄 (20자 이내, '~법 개정안' 같은 말 금지, 무엇을 바꾸는지 명확하게)",
+  "summary": "이 법이 실제로 무엇을 어떻게 바꾸는지 구체적으로 2문장",
+  "pro_summary": "찬성 측 주장 — 원문 근거 기반 1~2문장",
+  "con_summary": "반대 측 우려 — 현실적 비용·부작용·형평성 1~2문장",
   "category": "${CATEGORIES.join('/')} 중 하나"
 }`
 
@@ -195,8 +215,18 @@ export async function GET() {
       const billName = apiData?.BILL_NAME ?? row.title
       const proposer = row.proposer ?? ''
       const committee = apiData?.CURR_COMMITTEE ?? null
+      const billId = apiData?.BILL_ID ?? ''
 
-      const processed = await processWithClaude(billName, proposer, committee)
+      // 실제 제안이유 텍스트 조회 (실패해도 fallback으로 진행)
+      const detail = await fetchBillDetail(billId)
+
+      const processed = await processWithClaude(
+        billName,
+        proposer,
+        committee,
+        detail?.PROPOSE_REASON ?? null,
+        detail?.MAIN_CONTENT ?? null,
+      )
       if (processed) {
         const { error } = await supabase.from('issues').update({
           title: processed.title,

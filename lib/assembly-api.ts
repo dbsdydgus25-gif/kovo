@@ -43,6 +43,36 @@ export interface AssemblyApiResponse {
   total: number
 }
 
+export interface AssemblyBillDetail {
+  PROPOSE_REASON: string | null
+  MAIN_CONTENT: string | null
+}
+
+/** 의안 제안이유 및 주요내용 상세 조회 */
+export async function fetchBillDetail(billId: string): Promise<AssemblyBillDetail | null> {
+  if (!API_KEY || !billId) return null
+  try {
+    const params = new URLSearchParams({ KEY: API_KEY, Type: 'json', BILL_ID: billId })
+    const res = await fetch(`${BASE_URL}/BILLINFODETAIL?${params}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const root = data?.BILLINFODETAIL
+    if (!root) return null
+    const resultCode = root[0]?.head?.[1]?.RESULT?.CODE
+    if (resultCode !== 'INFO-000') return null
+    const row = root[1]?.row?.[0]
+    if (!row) return null
+    return {
+      PROPOSE_REASON: row.PROPOSE_REASON ?? null,
+      MAIN_CONTENT: row.MAIN_CONTENT ?? null,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function fetchRecentBills(page = 1, size = 30): Promise<AssemblyApiResponse> {
   if (!API_KEY) return { bills: [], total: 0 }
 
