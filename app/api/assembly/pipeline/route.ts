@@ -37,6 +37,14 @@ function isPromulgated(procResult: string | null): boolean {
   return ['원안가결', '수정가결', '대안반영가결'].some(r => procResult.includes(r))
 }
 
+/** 법안 진행 단계 계산 (CURR_COMMITTEE 기반) */
+function computeBillStage(bill: { CURR_COMMITTEE: string | null; PROPOSE_DT: string }): { idx: number; date: string } {
+  if (bill.CURR_COMMITTEE) {
+    return { idx: 1, date: bill.PROPOSE_DT }
+  }
+  return { idx: 0, date: bill.PROPOSE_DT }
+}
+
 async function processWithClaude(billName: string, proposer: string, committee: string | null) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) return null
@@ -109,10 +117,15 @@ export async function GET() {
         .single()
 
       if (existing) {
-        // ── 기존 법안: api_data 최신화 + 공포 여부 체크 + 정당 재매칭 ──
+        // ── 기존 법안: api_data 최신화 + 심사단계 + 공포 여부 체크 + 정당 재매칭 ──
+        const stage = computeBillStage(bill)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: Record<string, any> = {
-          api_data: bill as unknown as Record<string, unknown>,
+          api_data: {
+            ...(bill as unknown as Record<string, unknown>),
+            bill_stage_idx: stage.idx,
+            bill_stage_date: stage.date,
+          },
         }
 
         // 공포된 법안 자동 완료됨 처리 (수동 hidden 상태는 보존)
@@ -142,6 +155,7 @@ export async function GET() {
         ? '정부'
         : await fetchMemberParty(bill.RST_PROPOSER)
 
+      const newStage = computeBillStage(bill)
       const { data: newIssue, error } = await supabase.from('issues').insert({
         title: bill.BILL_NAME.slice(0, 60),
         summary: `${bill.PROPOSER} 발의`,
@@ -154,7 +168,11 @@ export async function GET() {
         source_url: bill.LINK_URL,
         status: isPromulgated(bill.PROC_RESULT) ? 'closed' : 'active',
         featured: false,
-        api_data: bill as unknown as Record<string, unknown>,
+        api_data: {
+          ...(bill as unknown as Record<string, unknown>),
+          bill_stage_idx: newStage.idx,
+          bill_stage_date: newStage.date,
+        },
       }).select('id').single()
 
       if (!error && newIssue) {
