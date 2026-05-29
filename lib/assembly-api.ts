@@ -48,29 +48,84 @@ export interface AssemblyBillDetail {
   MAIN_CONTENT: string | null
 }
 
+/** 입법예고 페이지에서 제안이유 및 주요내용 스크래핑 (JSON API fallback) */
+async function scrapeFromPal(billId: string): Promise<AssemblyBillDetail | null> {
+  for (const urlType of ['lgsltpaOngoing', 'lgsltpaEnded']) {
+    try {
+      const url = `https://pal.assembly.go.kr/napal/lgsltpa/${urlType}/view.do?lgsltPaId=${billId}`
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'ko-KR,ko;q=0.9',
+        },
+      })
+      if (!res.ok) continue
+      const html = await res.text()
+
+      // <!-- 제안이유 및 주요내용 --> 섹션 찾기
+      const sectionMatch = html.match(/<!-- 제안이유 및 주요내용 -->([\s\S]*?)<!-- \/\/제안이유 및 주요내용 -->/)
+      if (!sectionMatch) continue
+
+      const descMatch = sectionMatch[1].match(/<div class="desc">([\s\S]*?)<\/div>/)
+      if (!descMatch) continue
+
+      const rawText = descMatch[1]
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim()
+
+      // "제안이유 및 주요내용\n\n" 접두사 제거
+      const cleanText = rawText.replace(/^제안이유 및 주요내용[\s\n]*/u, '').trim()
+      if (cleanText.length < 100) continue
+
+      return { PROPOSE_REASON: cleanText, MAIN_CONTENT: null }
+    } catch {
+      // 다음 URL 시도
+    }
+  }
+  return null
+}
+
 /** 의안 제안이유 및 주요내용 상세 조회 */
 export async function fetchBillDetail(billId: string): Promise<AssemblyBillDetail | null> {
-  if (!API_KEY || !billId) return null
-  try {
-    const params = new URLSearchParams({ KEY: API_KEY, Type: 'json', BILL_ID: billId })
-    const res = await fetch(`${BASE_URL}/BILLINFODETAIL?${params}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const root = data?.BILLINFODETAIL
-    if (!root) return null
-    const resultCode = root[0]?.head?.[1]?.RESULT?.CODE
-    if (resultCode !== 'INFO-000') return null
-    const row = root[1]?.row?.[0]
-    if (!row) return null
-    return {
-      PROPOSE_REASON: row.PROPOSE_REASON ?? null,
-      MAIN_CONTENT: row.MAIN_CONTENT ?? null,
+  if (!billId) return null
+
+  // 1) Open Assembly JSON API 시도
+  if (API_KEY) {
+    try {
+      const params = new URLSearchParams({ KEY: API_KEY, Type: 'json', BILL_ID: billId })
+      const res = await fetch(`${BASE_URL}/BILLINFODETAIL?${params}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const root = data?.BILLINFODETAIL
+        if (root) {
+          const resultCode = root[0]?.head?.[1]?.RESULT?.CODE
+          if (resultCode === 'INFO-000') {
+            const row = root[1]?.row?.[0]
+            if (row) {
+              const proposeReason = row.PROPOSE_REASON ?? row.BILL_REASON ?? row.REASON ?? null
+              const mainContent = row.MAIN_CONTENT ?? row.BILL_CONTENT ?? row.CONTENT ?? null
+              if (proposeReason || mainContent) {
+                return { PROPOSE_REASON: proposeReason, MAIN_CONTENT: mainContent }
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // fallthrough
     }
-  } catch {
-    return null
   }
+
+  // 2) 입법예고 사이트(pal.assembly.go.kr) HTML 스크래핑
+  return scrapeFromPal(billId)
 }
 
 export async function fetchRecentBills(page = 1, size = 30): Promise<AssemblyApiResponse> {
